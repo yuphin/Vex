@@ -8,7 +8,8 @@
 
 %code requires {
   #include <string>
-
+  #include <memory>
+  #include "ast.h"
   class driver;
 }
 
@@ -75,113 +76,320 @@
 %token <std::string> ID "identifier"
 %token <double> NUM "number"
 
+
+
+%type <std::unique_ptr<TopAST>> unit program
+%type <std::unique_ptr<std::vector<std::unique_ptr<FunctionAST>>>> function_list
+%type <std::unique_ptr<FunctionAST>> function
+%type <std::unique_ptr<FunctionDeclAST>> func_prototype
+%type <std::unique_ptr<FunctionBodyAST>> function_body
+%type <std::unique_ptr<std::vector<std::vector<std::unique_ptr<VariableDeclAST>>>>> declaration_list
+%type <std::unique_ptr<std::vector<std::unique_ptr<VariableDeclAST>>>> declaration variable_list parameter_list
+%type <std::unique_ptr<Type>> type
+%type <std::unique_ptr<obj_type>> basic_type
+%type <std::unique_ptr<double>> vector_extension
+%type <std::unique_ptr<std::vector<std::unique_ptr<StatementAST>>>> statement_list
+%type <std::unique_ptr<StatementAST>> statement
+%type <std::unique_ptr<AssignmentStatementAST>> assignment_statement
+%type <std::unique_ptr<ReturnStatementAST>> return_statement
+%type <std::unique_ptr<PrintStatementAST>> print_statement
+%type <std::unique_ptr<ReadStatementAST>> read_statement
+%type <std::unique_ptr<ForStatementAST>> for_statement
+%type <std::unique_ptr<IfStatementAST>> if_statement
+%type <std::unique_ptr<WhileStatementAST>> while_statement
+%type <std::unique_ptr<VariableAST>> variable
+%type <std::unique_ptr<ExprAST>> lexpression expression term unary factor 
+%type <std::unique_ptr<std::vector<std::unique_ptr<ExprAST>>>> expression_list argument_list 
+%type <std::unique_ptr<std::vector<std::unique_ptr<ExprAST>>>> print_expression
+%type <std::unique_ptr<std::vector<std::unique_ptr<VariableAST>>>> read_expression
+
 %printer {yyo << $$;} <*>
 
 %left AND OR NOT
 
 %%
-  %start program;
+  %start unit;
 
-  program : declaration_list function_list {} ;
+  unit : program { drv.root = std::move($1); }
+
+  program: declaration_list function_list {
+                        $$ = std::make_unique<TopAST>(std::move(*$1),std::move(*$2)) ;
+  } ;
   
-  function_list : function {}
-                | function_list function {} ;
+  function_list: function { 
+                        $$ = std::make_unique<std::vector<std::unique_ptr<FunctionAST>>>();
+                        $$->emplace_back(std::move($1));
+                }
+                | function_list function {
+                        $$ = std::move($1);
+                        $$->emplace_back(std::move($2));
+  } ;
+  
+  function: func_prototype function_body ENDFUNC {
+                        $$ = std::make_unique<FunctionAST>(std::move($1), std::move($2));
+  } ;
 
-  function : basic_type FUNC ID "(" parameter_list ")" function_body ENDFUNC {} ;
 
-  function_body : declaration_list statement_list {} ;
+  func_prototype: basic_type FUNC ID "(" parameter_list ")" {
+                        $$ = std::make_unique<FunctionDeclAST>($3,drv.location,*$1,std::move(*$5));
+  } ;
 
-  declaration_list : %empty {} 
-                   | declaration_list declaration ";" {} ; 
+  function_body: declaration_list statement_list {
+                        $$ = std::make_unique<FunctionBodyAST>(std::move(*$1), std::move(*$2));
+  } ;
+
+  declaration_list: %empty { 
+                        $$ = std::make_unique<std::vector<std::vector<std::unique_ptr<VariableDeclAST>>>>();
+                    } 
+                    | declaration_list declaration ";" {
+                        $$ = std::move($1);
+                        $$->emplace_back(std::move(*$2)); 
+  } ; 
                  
 
-  declaration : VAR variable_list {};                
+  declaration: VAR variable_list {
+      $$ = std::move($2);
 
-  parameter_list : %empty {} 
-                 | variable_list {} ;
+  } ;                
 
-  variable_list : ID ":" type {}               
-                | variable_list "," ID ":" type {} ;
+  parameter_list: %empty {
+                       //   $$ = nullptr;
+                        $$ = std::make_unique<std::vector<std::unique_ptr<VariableDeclAST>>>();
+                 } 
+                 | variable_list {
+                        $$ = std::move($1);
 
-  type : basic_type vector_extension {} ;                
+  } ;
 
-  basic_type : INT {}
-             | REAL {} ;
+  variable_list: ID ":" type {
+                        $$ = std::make_unique<std::vector<std::unique_ptr<VariableDeclAST>>>();
+                        $$->emplace_back(std::make_unique<VariableDeclAST>($1,drv.location, *$3));
+                }               
+                | variable_list "," ID ":" type {
+                        $$ = std::move($1); 
+                        $$->emplace_back(std::make_unique<VariableDeclAST>($3,drv.location, *$5));
 
-  vector_extension : "[" NUM "]" {}            
-                   | "[" "]" {} 
-                   | %empty {} ; 
+  } ;
 
-  statement_list : statement ";" {}
-                 | statement_list statement ";" {} ;
+  type: basic_type vector_extension {
+                        $$ = std::make_unique<Type>(*$1,*$2);
 
-  statement : assignment_statement {}
-            | return_statement {}
-            | print_statement {}
-            | read_statement {}
-            | for_statement {}
-            | if_statement {}
-            | while_statement {} ;
+  } ;
+
+  basic_type: INT {
+                        $$ = std::make_unique<obj_type>(INT);
+             }
+             | REAL {
+                        $$ = std::make_unique<obj_type>(REAL);
+                        
+             } ;
+
+  vector_extension: "[" NUM "]" {
+                        $$ = std::make_unique<double>($2);
+                   }            
+                   | "[" "]" {
+                        $$ = std::make_unique<double>(0);
+                   } 
+                   | %empty {
+                        $$ = std::make_unique<double>(-1);
+                   } ; 
+
+  statement_list: statement ";" {
+                       $$ = std::make_unique<std::vector<std::unique_ptr<StatementAST>>>(); 
+                       $$->emplace_back(std::move($1));
+
+                 }
+                 | statement_list statement ";" {
+                       $$ = std::move($1);
+                       $$->emplace_back(std::move($2));
+
+  } ;
+
+  statement: assignment_statement {
+                       $$ = std::move($1);
+            }
+            | return_statement {
+                       $$ = std::move($1);
+            }
+            | print_statement {
+                       $$ = std::move($1);
+            }
+            | read_statement {
+                       $$ = std::move($1);
+            }
+            | for_statement {
+                       $$ = std::move($1);
+            }
+            | if_statement {
+                       $$ = std::move($1);
+            }
+            | while_statement {
+                       $$ = std::move($1);
+  } ;
   
-  assignment_statement : variable ":=" expression {} ;
+  assignment_statement: variable ":=" expression {
+                       $$ = std::make_unique<AssignmentStatementAST>(std::move($1),std::move($3));
+                      
+  } ;
 
-  variable : ID {}
-           | ID "[" expression "]" {} ; 
+  variable: ID {
+                    $$ = std::make_unique<VariableAST>($1,drv.location);
+           }
+           | ID "[" expression "]" {
+                    $$ = std::make_unique<VariableAST>($1,drv.location,std::move($3));
+  } ; 
 
-  lexpression : expression {}  ;
-              | expression EQ  expression {}
-              | expression LT  expression {}
-              | expression GT  expression {}
-              | expression LTE  expression {}
-              | expression GTE expression {} 
-              | lexpression AND lexpression {} 
-              | lexpression OR lexpression {} 
-              | lexpression NOT lexpression {}
-              | NOT lexpression {} 
+  lexpression: expression {
+                       $$ = std::move($1);
+              }
+              | expression EQ  expression {
+                       $$ = std::make_unique<BinaryExprAST>(std::move($1),EQ,std::move($3),drv.location);
+              }
+              | expression LT  expression {
+                       $$ = std::make_unique<BinaryExprAST>(std::move($1),LT,std::move($3),drv.location);
+              }
+              | expression GT  expression {
+                       $$ = std::make_unique<BinaryExprAST>(std::move($1),GT,std::move($3),drv.location);
+              }
+              | expression LTE  expression {
+                       $$ = std::make_unique<BinaryExprAST>(std::move($1),LTE,std::move($3),drv.location);
+              }
+              | expression GTE expression {
+                       $$ = std::make_unique<BinaryExprAST>(std::move($1),GTE,std::move($3),drv.location);
+              } 
+              | lexpression AND lexpression {
+                       $$ = std::make_unique<BinaryExprAST>(std::move($1),AND,std::move($3),drv.location);
+              } 
+              | lexpression OR lexpression {
+                       $$ = std::make_unique<BinaryExprAST>(std::move($1),OR,std::move($3),drv.location);
+              } 
+              | lexpression NOT lexpression {
+                       $$ = std::make_unique<BinaryExprAST>(std::move($1),NOT,std::move($3),drv.location);
+              }
+              | NOT lexpression {
+                       $$ = std::make_unique<UnaryExprAST>(UNOT,std::move($2),drv.location);
+  } ; 
              
 
-  expression : term {}
-             | expression PLUS term {}
-             | expression MINUS term {} ;
+  expression: term {
+                       $$ = std::move($1);           
+             }
+             | expression PLUS term {
+                       $$ = std::make_unique<BinaryExprAST>(std::move($1),ADD,std::move($3),drv.location);
+             }
+             | expression MINUS term {
+                       $$ = std::make_unique<BinaryExprAST>(std::move($1),SUB,std::move($3),drv.location);
+  } ;
 
-  term : unary {}
-       | term STAR unary {}
-       | term SLASH unary {}
-       | term MOD unary {}
-       | term DIV unary {} ;
+  term: unary {
+                       $$ = std::move($1);
+       }
+       | term STAR unary {
+                       $$ = std::make_unique<BinaryExprAST>(std::move($1),MULT,std::move($3),drv.location);
+       }
+       | term SLASH unary {
+                       $$ = std::make_unique<BinaryExprAST>(std::move($1),DIV,std::move($3),drv.location);
+       }
+       | term MOD unary {
+                       $$ = std::make_unique<BinaryExprAST>(std::move($1),MOD,std::move($3),drv.location);
+       }
+       | term DIV unary {
+                       $$ = std::make_unique<BinaryExprAST>(std::move($1),DIV,std::move($3),drv.location);
+  } ;
 
-  unary : factor {} 
-        | MINUS factor {} ;
+  unary: factor {
+                       $$ = std::move($1);
+        } 
+        | MINUS factor {
+                       $$ = std::make_unique<UnaryExprAST>(MINUS,std::move($2),drv.location);
 
-  factor : variable | ID "(" argument_list ")" {}
-         | NUM {}
-         | "(" expression ")" {};
+  } ;
 
-  argument_list : expression_list {}
-                | %empty {} ;
+  factor: variable {
+                       $$ = std::move($1);
+         } 
+         | ID "(" argument_list ")" {
+                       $$ = std::make_unique<InvocationAST>($1,std::move(*$3));
+         }
+         | NUM {
+                       $$ = std::make_unique<NumAST>($1,drv.location);
+         }
+         | "(" expression ")" {
+                       $$ = std::move($2);
 
-  expression_list : expression {}
-                  | expression_list "," expression {} ;
+  };
 
-  return_statement : RETURN expression {} ;
+  argument_list: expression_list {
+                       $$ = std::move($1);
+                }
+                | %empty {
+                       $$ = std::make_unique<std::vector<std::unique_ptr<ExprAST>>>();
+  } ;
 
-  for_statement : FOR variable ASSIGN expression TO expression BY expression statement_list ENDFOR {}
-                | FOR variable ASSIGN expression TO expression statement_list ENDFOR {} ;
+  expression_list: expression {
+                        $$ = std::make_unique<std::vector<std::unique_ptr<ExprAST>>>();
+                        $$->emplace_back(std::move($1));
+                  }
+                  | expression_list "," expression {
+                        $$ = std::move($1);
+                        $$->emplace_back(std::move($3));
+  } ;
 
-  if_statement : IF lexpression THEN statement_list ENDIF {}
-               | IF lexpression THEN statement_list ELSE statement_list ENDIF {} ;
+  return_statement: RETURN expression {
+                        $$ = std::make_unique<ReturnStatementAST>(std::move($2));
+  } ;
 
-  while_statement : WHILE lexpression DO statement_list ENDWHILE {} ;
+  for_statement: FOR assignment_statement TO expression BY expression statement_list ENDFOR {
+                        $$ = std::make_unique<ForStatementAST>(std::move($2),
+                            std::move($4),std::move($6),std::move(*$7)); 
+                }
+                | FOR assignment_statement TO expression statement_list ENDFOR {
+                        $$ = std::make_unique<ForStatementAST>(std::move($2),
+                            std::move($4),std::move(*$5)); 
 
-  print_expression : expression {}
-                   | print_expression "," expression {}
+  } ;
+
+  if_statement: IF lexpression THEN statement_list ENDIF {
+                        $$ = std::make_unique<IfStatementAST>(std::move($2),std::move(*$4));
+               }
+               | IF lexpression THEN statement_list ELSE statement_list ENDIF {
+                        $$ = std::make_unique<IfStatementAST>(std::move($2),std::move(*$4),std::move(*$6));
+
+  } ;
+
+  while_statement: WHILE lexpression DO statement_list ENDWHILE {
+                        $$ = std::make_unique<WhileStatementAST>(std::move($2),std::move(*$4));
+  } ;
+
+  print_expression: expression {
+                        $$ = std::make_unique<std::vector<std::unique_ptr<ExprAST>>>();
+                        $$->emplace_back(std::move($1));
+                   }
+                   | print_expression "," expression {
+                        $$ = std::move($1);
+                        $$->emplace_back(std::move($3));
+
+  } ;
                   
-  read_expression : variable {}
-                  | read_expression "," variable {} ;
+  read_expression: variable {
+                        $$ = std::make_unique<std::vector<std::unique_ptr<VariableAST>>>();
+                        $$->emplace_back(std::move($1));
+  
+                  }
+                  | read_expression "," variable {
+                        $$ = std::move($1);
+                        $$->emplace_back(std::move($3));
 
-  print_statement : PRINT print_expression {} ;       
+  } ;
 
-  read_statement : READ  read_expression {} ;
+  print_statement: PRINT print_expression {
+                        $$ =  std::make_unique<PrintStatementAST>(std::move(*$2));
+
+  } ;       
+
+  read_statement: READ  read_expression {
+                        $$ =  std::make_unique<ReadStatementAST>(std::move(*$2));
+  } ;
 
 %%
 

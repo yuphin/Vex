@@ -1,4 +1,5 @@
 ﻿#include <iostream>
+#include "ast.h"
 #include "driver.h"
 
 int main(int argc, char* argv[]) {
@@ -13,5 +14,6 @@ int main(int argc, char* argv[]) {
             std::cout << drv.result << '\n';
         else
             res = 1;
+
     return res;
 }

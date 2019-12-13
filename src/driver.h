@@ -2,6 +2,7 @@
 #include <string>
 #include <map>
 #include "parser.h"
+#include "ast.h"
 
 // Give Flex the prototype of yylex we want ...
 # define YY_DECL \
@@ -13,6 +14,7 @@ class driver {
 public:
     driver();
     std::map<std::string, int> variables;
+    std::unique_ptr<BaseAST> root;
     int result;
     // Run the parser on file F.  Return 0 on success.
     int parse(const std::string& f);
