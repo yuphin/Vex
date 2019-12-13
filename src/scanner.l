@@ -1,4 +1,11 @@
 %{ /* -*- C++ -*- */
+
+#if defined(_WIN32) || defined(_WIN64)
+    #include <io.h>
+#else
+    #include <unistd.h>
+#endif
+
 # include <cerrno>
 # include <climits>
 # include <cfloat>
@@ -7,13 +14,13 @@
 # include <string>
 # include "driver.h"
 # include "parser.h"
-# include <io.h>
+
 
 %}
 
 %option noyywrap nounput noinput batch debug
-
 %option nounistd
+
 %{
   // A number symbol corresponding to the value in S.
   yy::parser::symbol_type make_NUMBER (const std::string &s, const yy::parser::location_type& loc);
