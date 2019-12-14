@@ -80,7 +80,7 @@
 
 %type <std::unique_ptr<Type>> type
 %type <obj_type> basic_type
-%type <double> vector_extension
+%type <std::unique_ptr<int>> vector_extension
 %type <std::unique_ptr<std::vector<std::unique_ptr<StatementAST>>>> statement_list
 %type <std::unique_ptr<TopAST>> unit program
 %type <std::unique_ptr<std::vector<std::unique_ptr<FunctionAST>>>> function_list
@@ -166,18 +166,23 @@
   variable_list: ID ":" type {
                         // std::cout << "Reading: " << $1 << std::endl; 
                         $$ = std::make_unique<std::vector<std::unique_ptr<VariableDeclAST>>>();
-                        $$->emplace_back(std::make_unique<VariableDeclAST>(std::move($1),drv.location, *$3));
+                        $$->emplace_back(std::make_unique<VariableDeclAST>(std::move($1),drv.location,std::move($3)));
                 }               
                 | variable_list "," ID ":" type {
                         // std::cout << "Reading: " << $3 << std::endl; 
                         $$ = std::move($1); 
-                        $$->emplace_back(std::make_unique<VariableDeclAST>(std::move($3),drv.location, *$5));
+                        $$->emplace_back(std::make_unique<VariableDeclAST>(std::move($3),drv.location,std::move($5)));
                         // std::cout << "Contents(2) of $$ is : " << $$->size() << std::endl; 
 
   } ;
 
   type: basic_type vector_extension {
-                        $$ = std::make_unique<Type>($1,$2);
+                      if($2){
+                        $$ = std::make_unique<Type>($1,std::move($2));
+                      }else{
+                        $$ = std::make_unique<Type>($1);
+                      }
+                        
 
   } ;
 
@@ -190,13 +195,15 @@
              } ;
 
   vector_extension: "[" NUM "]" {
-                        $$ = $2; 
+                        // TODO : Give warning here if $2 is float.
+                        // Explicit casting is only a temporary hack
+                        $$ = std::make_unique<int>((int)$2); 
                    }            
                    | "[" "]" {
-                        $$ = 0;
+                        $$ = std::make_unique<int>(0);
                    } 
                    | %empty {
-                        $$ = -1; 
+                        $$ = nullptr;
                    } ; 
 
   statement_list: statement ";" {

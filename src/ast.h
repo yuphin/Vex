@@ -44,10 +44,15 @@ struct StatementAST;
 
 
 struct Type {
-	obj_type s_type;
-	double vec_extension;
 
-	Type(const obj_type& s_type, const double& vec_extension) : s_type(s_type), vec_extension(vec_extension) {}
+	obj_type s_type;
+	std::unique_ptr<int> array_size;
+	bool is_array;
+
+	Type(const obj_type& s_type, std::unique_ptr<int> array_size) :
+		s_type(s_type), array_size(std::move(array_size)),is_array(*this->array_size >= 0) {}
+
+	Type(const obj_type& s_type) : s_type(s_type),  array_size(nullptr), is_array(false) {}
 };
 
 struct BaseAST {
@@ -218,10 +223,10 @@ struct WhileStatementAST : public StatementAST {
 	//llvm::Value* codegen() override;
 };
 struct VariableDeclAST : public BaseAST {
-	Type var_type;
+	std::unique_ptr<Type> var_type;
 	std::string name;
-	VariableDeclAST(std::string&& name, yy::location& location, const Type& var_type) : 
-		BaseAST(location),var_type(var_type), name(std::move(name)) {}
+	VariableDeclAST(std::string&& name, yy::location& location, std::unique_ptr<Type> var_type) :
+		BaseAST(location),var_type(std::move(var_type)), name(std::move(name)) {}
 	//llvm::Value* codegen() override;
 };
 
