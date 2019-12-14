@@ -78,17 +78,16 @@
 
 
 
+%type <std::unique_ptr<Type>> type
+%type <obj_type> basic_type
+%type <double> vector_extension
+%type <std::unique_ptr<std::vector<std::unique_ptr<StatementAST>>>> statement_list
 %type <std::unique_ptr<TopAST>> unit program
 %type <std::unique_ptr<std::vector<std::unique_ptr<FunctionAST>>>> function_list
 %type <std::unique_ptr<FunctionAST>> function
 %type <std::unique_ptr<FunctionDeclAST>> func_prototype
 %type <std::unique_ptr<FunctionBodyAST>> function_body
-%type <std::unique_ptr<std::vector<std::vector<std::unique_ptr<VariableDeclAST>>>>> declaration_list
-%type <std::unique_ptr<std::vector<std::unique_ptr<VariableDeclAST>>>> declaration variable_list parameter_list
-%type <std::unique_ptr<Type>> type
-%type <std::unique_ptr<obj_type>> basic_type
-%type <std::unique_ptr<double>> vector_extension
-%type <std::unique_ptr<std::vector<std::unique_ptr<StatementAST>>>> statement_list
+%type <std::unique_ptr<std::vector<std::unique_ptr<VariableDeclAST>>>> declaration_list declaration variable_list parameter_list
 %type <std::unique_ptr<StatementAST>> statement
 %type <std::unique_ptr<AssignmentStatementAST>> assignment_statement
 %type <std::unique_ptr<ReturnStatementAST>> return_statement
@@ -131,7 +130,7 @@
 
 
   func_prototype: basic_type FUNC ID "(" parameter_list ")" {
-                        $$ = std::make_unique<FunctionDeclAST>(std::move($3),drv.location,*$1,std::move(*$5));
+                        $$ = std::make_unique<FunctionDeclAST>(std::move($3),drv.location,$1,std::move(*$5));
   } ;
 
   function_body: declaration_list statement_list {
@@ -139,11 +138,14 @@
   } ;
 
   declaration_list: %empty { 
-                        $$ = std::make_unique<std::vector<std::vector<std::unique_ptr<VariableDeclAST>>>>();
+                        $$ = std::make_unique<std::vector<std::unique_ptr<VariableDeclAST>>>();
                     } 
                     | declaration_list declaration ";" {
                         $$ = std::move($1);
-                        $$->emplace_back(std::move(*$2)); 
+                        // std::cout << "Contents of $2 is : " << $2->size() << std::endl; 
+                        $$->insert($$->end(), std::make_move_iterator($2->begin()),
+                            std::make_move_iterator($2->end()));
+                        // std::cout << "Contents of $$ is : " << $$->size() << std::endl; 
   } ; 
                  
 
@@ -162,36 +164,39 @@
   } ;
 
   variable_list: ID ":" type {
+                        // std::cout << "Reading: " << $1 << std::endl; 
                         $$ = std::make_unique<std::vector<std::unique_ptr<VariableDeclAST>>>();
                         $$->emplace_back(std::make_unique<VariableDeclAST>(std::move($1),drv.location, *$3));
                 }               
                 | variable_list "," ID ":" type {
+                        // std::cout << "Reading: " << $3 << std::endl; 
                         $$ = std::move($1); 
                         $$->emplace_back(std::make_unique<VariableDeclAST>(std::move($3),drv.location, *$5));
+                        // std::cout << "Contents(2) of $$ is : " << $$->size() << std::endl; 
 
   } ;
 
   type: basic_type vector_extension {
-                        $$ = std::make_unique<Type>(*$1,*$2);
+                        $$ = std::make_unique<Type>($1,$2);
 
   } ;
 
   basic_type: INT {
-                        $$ = std::make_unique<obj_type>(INT);
+                        $$ = INT;
              }
              | REAL {
-                        $$ = std::make_unique<obj_type>(REAL);
+                        $$ = REAL;
                         
              } ;
 
   vector_extension: "[" NUM "]" {
-                        $$ = std::make_unique<double>($2);
+                        $$ = $2; 
                    }            
                    | "[" "]" {
-                        $$ = std::make_unique<double>(0);
+                        $$ = 0;
                    } 
                    | %empty {
-                        $$ = std::make_unique<double>(-1);
+                        $$ = -1; 
                    } ; 
 
   statement_list: statement ";" {

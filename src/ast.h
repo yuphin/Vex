@@ -47,7 +47,7 @@ struct Type {
 	obj_type s_type;
 	double vec_extension;
 
-	Type(obj_type& s_type, double& vec_extension) : s_type(s_type), vec_extension(vec_extension) {}
+	Type(const obj_type& s_type, const double& vec_extension) : s_type(s_type), vec_extension(vec_extension) {}
 };
 
 struct BaseAST {
@@ -220,7 +220,7 @@ struct WhileStatementAST : public StatementAST {
 struct VariableDeclAST : public BaseAST {
 	Type var_type;
 	std::string name;
-	VariableDeclAST(std::string&& name, yy::location& location, Type& var_type) : 
+	VariableDeclAST(std::string&& name, yy::location& location, const Type& var_type) : 
 		BaseAST(location),var_type(var_type), name(std::move(name)) {}
 	//llvm::Value* codegen() override;
 };
@@ -242,15 +242,12 @@ struct FunctionDeclAST : public BaseAST {
 };
 
 
-
-
-
 struct FunctionBodyAST : public BaseAST {
 
-	std::vector<std::vector<std::unique_ptr<VariableDeclAST>>> declaration_list;
+	std::vector<std::unique_ptr<VariableDeclAST>> declaration_list;
 	std::vector<std::unique_ptr<StatementAST>> statement_list;
 	
-	FunctionBodyAST(std::vector<std::vector<std::unique_ptr<VariableDeclAST>>> declaration_list
+	FunctionBodyAST(std::vector<std::unique_ptr<VariableDeclAST>> declaration_list
 		, std::vector<std::unique_ptr<StatementAST>> statement_list) :
 		declaration_list(std::move(declaration_list)), 
 	    statement_list(std::move(statement_list)) {} 
@@ -271,11 +268,11 @@ struct FunctionAST : public BaseAST {
 
 struct TopAST : public BaseAST {
 
-	std::vector<std::vector<std::unique_ptr<VariableDeclAST>>> declaration_list;
+	std::vector<std::unique_ptr<VariableDeclAST>> declaration_list;
 	std::vector<std::unique_ptr<FunctionAST>> function_list;
 
 
-	TopAST(std::vector<std::vector<std::unique_ptr<VariableDeclAST>>> declaration_list,
+	TopAST(std::vector<std::unique_ptr<VariableDeclAST>> declaration_list,
 		std::vector<std::unique_ptr<FunctionAST>> function_list
 		) : declaration_list(std::move(declaration_list)), function_list(std::move(function_list)) {}
 };
