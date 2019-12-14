@@ -131,7 +131,7 @@
 
 
   func_prototype: basic_type FUNC ID "(" parameter_list ")" {
-                        $$ = std::make_unique<FunctionDeclAST>($3,drv.location,*$1,std::move(*$5));
+                        $$ = std::make_unique<FunctionDeclAST>(std::move($3),drv.location,*$1,std::move(*$5));
   } ;
 
   function_body: declaration_list statement_list {
@@ -163,11 +163,11 @@
 
   variable_list: ID ":" type {
                         $$ = std::make_unique<std::vector<std::unique_ptr<VariableDeclAST>>>();
-                        $$->emplace_back(std::make_unique<VariableDeclAST>($1,drv.location, *$3));
+                        $$->emplace_back(std::make_unique<VariableDeclAST>(std::move($1),drv.location, *$3));
                 }               
                 | variable_list "," ID ":" type {
                         $$ = std::move($1); 
-                        $$->emplace_back(std::make_unique<VariableDeclAST>($3,drv.location, *$5));
+                        $$->emplace_back(std::make_unique<VariableDeclAST>(std::move($3),drv.location, *$5));
 
   } ;
 
@@ -233,10 +233,10 @@
   } ;
 
   variable: ID {
-                    $$ = std::make_unique<VariableAST>($1,drv.location);
+                    $$ = std::make_unique<VariableAST>(std::move($1),drv.location);
            }
            | ID "[" expression "]" {
-                    $$ = std::make_unique<VariableAST>($1,drv.location,std::move($3));
+                    $$ = std::make_unique<VariableAST>(std::move($1),drv.location,std::move($3));
   } ; 
 
   lexpression: expression {
@@ -309,7 +309,7 @@
                        $$ = std::move($1);
          } 
          | ID "(" argument_list ")" {
-                       $$ = std::make_unique<InvocationAST>($1,std::move(*$3));
+                       $$ = std::make_unique<InvocationAST>(std::move($1),std::move(*$3));
          }
          | NUM {
                        $$ = std::make_unique<NumAST>($1,drv.location);

@@ -15,6 +15,34 @@ enum bin_op {EQ, LT, GT, LTE, GTE, AND, OR, NOT, ADD, SUB, MULT, DIV, MOD};
 
 enum un_op {UNOT, MINUS};
 
+// Variable types
+struct Type;
+// Root AST
+struct BaseAST;
+struct TopAST;
+struct VariableDeclAST;
+struct FunctionAST;
+struct FunctionDeclAST;
+struct FunctionBodyAST;
+// Exprs
+struct ExprAST; 
+struct BinaryExprAST;
+struct UnaryExprAST;
+struct VariableExprAST;
+struct NumAST;
+struct InvocationAST;
+// Statements
+struct StatementAST;
+struct AssignmentStatementAST;
+struct ReturnStatement;
+struct PrintStatement;
+struct ReadStatement;
+struct IfStatementAST;
+struct ForStatementAST;
+struct WhileStatementAST;
+struct StatementAST;
+
+
 struct Type {
 	obj_type s_type;
 	double vec_extension;
@@ -75,11 +103,11 @@ struct UnaryExprAST : public ExprAST {
 struct VariableAST : public ExprAST {
 	std::string name;
 	std::unique_ptr<ExprAST> indexExpr;
-	VariableAST(const std::string& name, yy::location& location, 
+	VariableAST(std::string&& name, yy::location& location, 
 		std::unique_ptr<ExprAST> indexExpr) :
-		ExprAST(location), name(name), indexExpr(std::move(indexExpr)) {}
-	VariableAST(const std::string& name, yy::location& location) :
-		ExprAST(location), name(name), indexExpr(nullptr) {}
+		ExprAST(location), name(std::move(name)), indexExpr(std::move(indexExpr)) {}
+	VariableAST( std::string&& name, yy::location& location) :
+		ExprAST(location), name(std::move(name)), indexExpr(nullptr) {}
 	//llvm::Value* codegen() override;
 };
 
@@ -92,6 +120,17 @@ struct NumAST : public ExprAST {
 		ExprAST(val, location) {
 		// std::cout << "Val is: " <<  this->val << std::endl;
 	}
+	//llvm::Value* codegen() override;
+};
+
+// For function calls
+struct InvocationAST : public ExprAST {
+	std::string callee;
+	std::vector<std::unique_ptr<ExprAST>> args;
+
+
+	InvocationAST(std::string&& callee, std::vector<std::unique_ptr<ExprAST>> args)
+		: callee(std::move(callee)), args(std::move(args)) {}
 	//llvm::Value* codegen() override;
 };
 
@@ -181,15 +220,8 @@ struct WhileStatementAST : public StatementAST {
 struct VariableDeclAST : public BaseAST {
 	Type var_type;
 	std::string name;
-	VariableDeclAST(const std::string& name, yy::location& location, Type& var_type) : 
-		BaseAST(location),var_type(var_type), name(name) {}
-	//llvm::Value* codegen() override;
-};
-
-struct VariableDeclsAST : public BaseAST {
-	std::vector<std::unique_ptr<VariableDeclAST>> var_decls;
-	//VariableDeclsAST(std::vector<std::unique_ptr<VariableDeclAST>> var_decls) : var_decls(std::move(var_decls)) {}
-	//VariableDeclsAST() : var_decls{} {}
+	VariableDeclAST(std::string&& name, yy::location& location, Type& var_type) : 
+		BaseAST(location),var_type(var_type), name(std::move(name)) {}
 	//llvm::Value* codegen() override;
 };
 
@@ -202,24 +234,14 @@ struct FunctionDeclAST : public BaseAST {
 
 
 	// Incomplete: Possible ref value in arg_names 
-	FunctionDeclAST(std::string name, yy::location& location, 
+	FunctionDeclAST(std::string&& name, yy::location& location, 
 		obj_type& func_type, std::vector <std::unique_ptr<VariableDeclAST>> parameter_list) :
 		BaseAST(location), func_type(func_type), 
-		name(name), parameter_list(std::move(parameter_list)) {}
+		name(std::move(name)), parameter_list(std::move(parameter_list)) {}
 	//llvm::Value* codegen() override;
 };
 
 
-// For function calls
-struct InvocationAST : public ExprAST {
-	std::string callee;
-	std::vector<std::unique_ptr<ExprAST>> args;
-
-
-	InvocationAST(const std::string& callee, std::vector<std::unique_ptr<ExprAST>> args)
-		: callee(callee), args(std::move(args)) {}
-	//llvm::Value* codegen() override;
-};
 
 
 
