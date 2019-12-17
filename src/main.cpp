@@ -14,7 +14,7 @@ int main(int argc, char* argv[]) {
         else
             std::cerr << "No file provided!" << '\n';
 
-    codegen cg("main");
+    CodeGen cg("main");
     drv.root->accept(cg);
     cg.print_IR();
     return 0;

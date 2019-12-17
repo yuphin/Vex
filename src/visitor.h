@@ -30,7 +30,7 @@ struct WhileStatementAST;
 
 
 
-class visitor {
+class Visitor {
 public:
     virtual llvm::Value* visit(BaseAST& el) = 0;
     virtual llvm::Value* visit(TopAST& el) = 0;

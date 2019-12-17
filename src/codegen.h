@@ -11,14 +11,14 @@
 #include "ast.h"
 
 
-struct codegen : public visitor {
+struct CodeGen : public Visitor {
 
 	llvm::LLVMContext context;
 	std::unique_ptr<llvm::Module> the_module;
 	std::map<std::string, llvm::Value*> sym_tab;
 	llvm::Value* value;
 
-	codegen(const std::string& module_name) {
+	CodeGen(const std::string& module_name) {
 		the_module = std::make_unique<llvm::Module>(module_name,context);
 		llvm::IRBuilder<> Builder(context);
 	}

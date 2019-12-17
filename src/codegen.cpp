@@ -1,50 +1,50 @@
 #include "codegen.h"
 
-llvm::Value* codegen::visit(NumAST& el) {
+llvm::Value* CodeGen::visit(NumAST& el) {
 	return llvm::ConstantFP::get(context, llvm::APFloat(el.val));
 }
 
-llvm::Value* codegen::visit(AssignmentStatementAST& el) {
+llvm::Value* CodeGen::visit(AssignmentStatementAST& el) {
 	return nullptr;
 }
 
-llvm::Value* codegen::visit(ReturnStatementAST& el) {
+llvm::Value* CodeGen::visit(ReturnStatementAST& el) {
 	return nullptr;
 }
 
-llvm::Value* codegen::visit(PrintStatementAST& el) {
+llvm::Value* CodeGen::visit(PrintStatementAST& el) {
 	return nullptr;
 }
 
-llvm::Value* codegen::visit(ReadStatementAST& el) {
+llvm::Value* CodeGen::visit(ReadStatementAST& el) {
 	return nullptr;
 }
 
-llvm::Value* codegen::visit(IfStatementAST& el) {
+llvm::Value* CodeGen::visit(IfStatementAST& el) {
 	return nullptr;
 }
 
-llvm::Value* codegen::visit(ForStatementAST& el) {
+llvm::Value* CodeGen::visit(ForStatementAST& el) {
 	return nullptr;
 }
 
-llvm::Value* codegen::visit(WhileStatementAST& el) {
+llvm::Value* CodeGen::visit(WhileStatementAST& el) {
 	return nullptr;
 }
 
-void codegen::print_IR() {
+void CodeGen::print_IR() {
 	the_module->print(llvm::errs(), nullptr);
 }
 
-llvm::Value* codegen::visit(BaseAST& el) {
+llvm::Value* CodeGen::visit(BaseAST& el) {
 	return llvm::ConstantFP::get(context, llvm::APFloat(3.14));
 }
 
-llvm::Value* codegen::visit(TopAST& el) {
+llvm::Value* CodeGen::visit(TopAST& el) {
 	return nullptr;
 }
 
-llvm::Value* codegen::visit(VariableDeclAST& el) {
+llvm::Value* CodeGen::visit(VariableDeclAST& el) {
 	llvm::Value* v = sym_tab[el.name];
 	if (!v) {
 		// To be replaced with logger
@@ -54,38 +54,38 @@ llvm::Value* codegen::visit(VariableDeclAST& el) {
 	return v;
 }
 
-llvm::Value* codegen::visit(FunctionAST& el) {
+llvm::Value* CodeGen::visit(FunctionAST& el) {
 	return nullptr;
 }
 
-llvm::Value* codegen::visit(FunctionDeclAST& el) {
+llvm::Value* CodeGen::visit(FunctionDeclAST& el) {
 	return nullptr;
 }
 
-llvm::Value* codegen::visit(FunctionBodyAST& el) {
+llvm::Value* CodeGen::visit(FunctionBodyAST& el) {
 	return nullptr;
 }
 
-llvm::Value* codegen::visit(ExprAST& el) {
+llvm::Value* CodeGen::visit(ExprAST& el) {
 	return nullptr;
 }
 
-llvm::Value* codegen::visit(BinaryExprAST& el) {
+llvm::Value* CodeGen::visit(BinaryExprAST& el) {
 	return nullptr;
 }
 
-llvm::Value* codegen::visit(UnaryExprAST& el) {
+llvm::Value* CodeGen::visit(UnaryExprAST& el) {
 	return nullptr;
 }
 
-llvm::Value* codegen::visit(VariableExprAST& el) {
+llvm::Value* CodeGen::visit(VariableExprAST& el) {
 	return nullptr;
 }
 
-llvm::Value* codegen::visit(InvocationAST& el) {
+llvm::Value* CodeGen::visit(InvocationAST& el) {
 	return nullptr;
 }
 
-llvm::Value* codegen::visit(StatementAST& el) {
+llvm::Value* CodeGen::visit(StatementAST& el) {
 	return nullptr;
 }
