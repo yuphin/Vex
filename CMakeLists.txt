@@ -17,10 +17,14 @@ include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 set(SRC_FILES 
         src/main.cpp
+        src/codegen.cpp
         src/parser.y
         src/scanner.l
         src/driver.cpp)
 set(HDR_FILES
+        src/ast.h
+        src/visitor.h
+        src/codegen.h
         src/driver.h)
 
 # Additional cleanup

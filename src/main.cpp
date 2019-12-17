@@ -1,9 +1,8 @@
 ﻿#include <iostream>
 #include "ast.h"
 #include "driver.h"
-
+#include "codegen.h"
 int main(int argc, char* argv[]) {
-    int res = 0;
     driver drv;
     for (int i = 1; i < argc; ++i)
         if (argv[i] == std::string("-p"))
@@ -11,9 +10,12 @@ int main(int argc, char* argv[]) {
         else if (argv[i] == std::string("-s"))
             drv.trace_scanning = true;
         else if (!drv.parse(argv[i]))
-            std::cout << drv.result << '\n';
+            std::cout << "Parsed!" << '\n';
         else
-            res = 1;
+            std::cerr << "No file provided!" << '\n';
 
-    return res;
+    codegen cg("main");
+    drv.root->accept(cg);
+    cg.print_IR();
+    return 0;
 }
