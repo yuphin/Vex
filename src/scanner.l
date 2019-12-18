@@ -10,10 +10,11 @@
 # include <climits>
 # include <cfloat>
 # include <cstdlib>
+# include <stdlib.h>
 # include <cstring> // strerror
 # include <string>
-# include "driver.h"
-# include "parser.h"
+# include "Driver.h"
+# include "Parser.h"
 
 
 %}
@@ -23,11 +24,13 @@
 
 %{
   // A number symbol corresponding to the value in S.
-  yy::parser::symbol_type make_NUMBER (const std::string &s, const yy::parser::location_type& loc);
+  yy::parser::symbol_type make_INTNUMBER (const std::string &s, const yy::parser::location_type& loc);
+  yy::parser::symbol_type make_DBLNUMBER (const std::string &s, const yy::parser::location_type& loc);
 %}
 
 id    [a-zA-Z][a-zA-Z_0-9]*
-num   [0-9]+([.][0-9]+)?([e]([+-])?[0-9]+)?
+dbl_num   [0-9]+([.][0-9]+)?([e]([+-])?[0-9]+)?
+int_num   [0-9]+
 blank [ \t\r]
 
 %{
@@ -85,8 +88,9 @@ blank [ \t\r]
 ":"        return yy::parser::make_COLON(loc);  
 ";"        return yy::parser::make_SEMICOLON(loc);  
 ","        return yy::parser::make_COMMA(loc);  
-"\""        return yy::parser::make_QUOTE(loc);  
-{num}      return make_NUMBER(yytext,loc);
+"\""       return yy::parser::make_QUOTE(loc);  
+{int_num}  return make_INTNUMBER(yytext,loc);
+{dbl_num}  return make_DBLNUMBER(yytext,loc);
 {id}       return yy::parser::make_ID(yytext,loc);
 "%".*      { /* Do nothing */}
 .          { throw yy::parser::syntax_error(loc,
@@ -94,13 +98,22 @@ blank [ \t\r]
 <<EOF>>    return yy::parser::make_END (loc);
 %%
 
-yy::parser::symbol_type make_NUMBER (const std::string &s, const yy::parser::location_type& loc) {
+yy::parser::symbol_type make_INTNUMBER (const std::string &s, const yy::parser::location_type& loc) {
   errno = 0;
-  double val = strtod(s.c_str(),nullptr);
-  if (!(-DBL_MAX <= val && val <= DBL_MAX && errno != ERANGE)){
+  unsigned long val = strtoul(s.c_str(),nullptr,0);
+  if (!(val <= INT_MAX && errno != ERANGE)){
     throw yy::parser::syntax_error (loc, "number is out of range: " + s);
   }
-  return yy::parser::make_NUM ((double) val, loc);
+  return yy::parser::make_INT_NUM ((int) val, loc);
+}
+
+yy::parser::symbol_type make_DBLNUMBER (const std::string &s, const yy::parser::location_type& loc) {
+  errno = 0;
+  double val = strtod(s.c_str(),nullptr);
+  if (!(val <= DBL_MAX && errno != ERANGE)){
+    throw yy::parser::syntax_error (loc, "number is out of range: " + s);
+  }
+  return yy::parser::make_DBL_NUM ((double) val, loc);
 }
 
 void driver::scan_begin () {

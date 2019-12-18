@@ -1,7 +1,7 @@
 ﻿#include <iostream>
-#include "ast.h"
-#include "driver.h"
-#include "codegen.h"
+#include "AST.h"
+#include "Driver.h"
+
 int main(int argc, char* argv[]) {
     driver drv;
     for (int i = 1; i < argc; ++i)
@@ -13,9 +13,7 @@ int main(int argc, char* argv[]) {
             std::cout << "Parsed!" << '\n';
         else
             std::cerr << "No file provided!" << '\n';
-
-    CodeGen cg("main");
-    drv.root->accept(cg);
-    cg.print_IR();
+    
+    drv.generate_code();
     return 0;
 }

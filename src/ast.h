@@ -4,13 +4,13 @@
 #include <memory>
 #include <iostream>
 #include "location.hh"
-#include "codegen.h"
+#include "CodeGen.h"
 
 // Variable type
-enum obj_type { INT, REAL };
+enum obj_type { INT = 0, REAL = 1};
 
 // Current binary operators
-enum bin_op { EQ, LT, GT, LTE, GTE, AND, OR, NOT, ADD, SUB, MULT, DIV, MOD };
+enum bin_op { EQ, LT, GT, LTE, GTE, AND, OR, NOT, ADD, SUB, MULT, DIV, IDIV, MOD };
 
 // Current unary operators
 enum un_op { UNOT, MINUS };
@@ -20,18 +20,18 @@ enum un_op { UNOT, MINUS };
 struct Type {
 
 	obj_type s_type;
-	std::unique_ptr<int> array_size;
+	std::unique_ptr<unsigned int> array_size;
 	bool is_array;
 
-	Type(const obj_type& s_type, std::unique_ptr<int> array_size) :
+	explicit Type(const obj_type& s_type, std::unique_ptr<unsigned int> array_size) :
 		s_type(s_type), array_size(std::move(array_size)), is_array(*this->array_size >= 0) {}
 
-	Type(const obj_type& s_type) : s_type(s_type), array_size(nullptr), is_array(false) {}
+	explicit Type(const obj_type& s_type) : s_type(s_type), array_size(nullptr), is_array(false) {}
 };
 
 
 struct AST {
-	virtual llvm::Value*  accept(Visitor& v) = 0;
+	virtual llvm::Value* accept(Visitor& v) = 0;
 };
 
 struct BaseAST : public  AST {
@@ -48,21 +48,17 @@ struct BaseAST : public  AST {
 };
 
 
-
 // Base Expr node. Note that every expression has a value.
 // Currently this value is set to double regardless of the type.
 struct ExprAST : public BaseAST {
 
-	double val;
-
+	char val;
 	ExprAST(yy::location& location) : BaseAST(location) {}
-	ExprAST(const double& val, yy::location& location) : BaseAST(location), val(val) {
-		std::cout << "Read val:" << val << std::endl;
-	}
+	ExprAST(yy::location& location, const double& val) : BaseAST(location), val(val) {}
 	ExprAST() {}
 	virtual  llvm::Value* accept(Visitor& v) override {
 		return v.visit(*this);
-		
+
 	}
 };
 
@@ -106,12 +102,25 @@ struct VariableAST : public ExprAST {
 
 
 // For number representation
-struct NumAST : public ExprAST {
+struct IntNumAST : public ExprAST {
+
+	unsigned int val;
+	IntNumAST(const unsigned int& val, yy::location& location) :
+		ExprAST(location), val(val) {
+		std::cout << "Integer val is: " << this->val << std::endl;
+	}
+	virtual llvm::Value* accept(Visitor& v) override {
+		return v.visit(*this);
+	}
+};
+
+struct FloatingNumAST : public ExprAST {
 
 
-	NumAST(const double& val, yy::location& location) :
-		ExprAST(val, location) {
-		// std::cout << "Val is: " <<  this->val << std::endl;
+	double val;
+	FloatingNumAST(const double& val, yy::location& location) :
+		ExprAST(location), val(val) {
+		std::cout << "Floating val is: " << this->val << std::endl;
 	}
 	virtual llvm::Value* accept(Visitor& v) override {
 		return v.visit(*this);
@@ -131,7 +140,7 @@ struct InvocationAST : public ExprAST {
 	}
 };
 
- // Base statement node
+// Base statement node
 struct StatementAST : public BaseAST {
 	virtual llvm::Value* accept(Visitor& v) override {
 		return v.visit(*this);
@@ -207,12 +216,12 @@ struct IfStatementAST : public StatementAST {
 
 	IfStatementAST(std::unique_ptr<ExprAST> if_expr,
 		std::vector<std::unique_ptr<StatementAST>> then_lst) :
-		if_expr(std::move(if_expr)), then_lst(std::move(then_lst)) { }
+		if_expr(std::move(if_expr)), then_lst(std::move(then_lst)) {}
 	IfStatementAST(
 		std::unique_ptr<ExprAST> if_expr,
 		std::vector<std::unique_ptr<StatementAST>> then_lst,
 		std::vector<std::unique_ptr<StatementAST>> else_lst) :
-		if_expr(std::move(if_expr)), then_lst(std::move(then_lst)), else_lst(std::move(else_lst)) { }
+		if_expr(std::move(if_expr)), then_lst(std::move(then_lst)), else_lst(std::move(else_lst)) {}
 	virtual  llvm::Value* accept(Visitor& v) override {
 		return v.visit(*this);
 	}
@@ -223,7 +232,7 @@ struct WhileStatementAST : public StatementAST {
 	std::vector<std::unique_ptr<StatementAST>> statement_list;
 
 
-	
+
 	WhileStatementAST(std::unique_ptr<ExprAST> while_expr,
 		std::vector<std::unique_ptr<StatementAST>> statement_list) :
 		while_expr(std::move(while_expr)), statement_list(std::move(statement_list)) {}
@@ -250,7 +259,6 @@ struct FunctionDeclAST : public BaseAST {
 	std::string name;
 	std::vector <std::unique_ptr<VariableDeclAST>> parameter_list;
 
-	// Incomplete: Possible ref value in arg_names 
 	FunctionDeclAST(std::string&& name, yy::location& location,
 		obj_type& func_type, std::vector <std::unique_ptr<VariableDeclAST>> parameter_list) :
 		BaseAST(location), func_type(func_type),
@@ -279,7 +287,7 @@ struct FunctionBodyAST : public BaseAST {
 struct FunctionAST : public BaseAST {
 	std::unique_ptr<FunctionDeclAST> prototype;
 	std::unique_ptr<FunctionBodyAST> body;
-	
+
 	FunctionAST(std::unique_ptr<FunctionDeclAST> prototype, std::unique_ptr<FunctionBodyAST> body)
 		: prototype(std::move(prototype)), body(std::move(body)) {}
 	virtual  llvm::Value* accept(Visitor& v) override {

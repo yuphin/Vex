@@ -9,7 +9,7 @@
 %code requires {
   #include <string>
   #include <memory>
-  #include "ast.h"
+  #include "AST.h"
   class driver;
 }
 
@@ -22,7 +22,7 @@
 %define parse.error verbose
 %code {
 
-    #include "driver.h"
+    #include "Driver.h"
 }
 // Token prefix
 %define api.token.prefix {TOK_}
@@ -74,13 +74,14 @@
 ;
 
 %token <std::string> ID "identifier"
-%token <double> NUM "number"
+%token <double> DBL_NUM "fp_number"
+%token <int> INT_NUM "int_number"
 
 
 
 %type <std::unique_ptr<Type>> type
 %type <obj_type> basic_type
-%type <std::unique_ptr<int>> vector_extension
+%type <std::unique_ptr<unsigned int>> vector_extension
 %type <std::unique_ptr<std::vector<std::unique_ptr<StatementAST>>>> statement_list
 %type <std::unique_ptr<TopAST>> unit program
 %type <std::unique_ptr<std::vector<std::unique_ptr<FunctionAST>>>> function_list
@@ -194,13 +195,11 @@
                         
              } ;
 
-  vector_extension: "[" NUM "]" {
-                        // TODO : Give warning here if $2 is float.
-                        // Explicit casting is only a temporary hack
-                        $$ = std::make_unique<int>((int)$2); 
+  vector_extension: "[" INT_NUM "]" {
+                        $$ = std::make_unique<unsigned int>($2); 
                    }            
                    | "[" "]" {
-                        $$ = std::make_unique<int>(0);
+                        $$ = std::make_unique<unsigned int>(0);
                    } 
                    | %empty {
                         $$ = nullptr;
@@ -275,9 +274,6 @@
               | lexpression OR lexpression {
                        $$ = std::make_unique<BinaryExprAST>(std::move($1),OR,std::move($3),drv.location);
               } 
-              | lexpression NOT lexpression {
-                       $$ = std::make_unique<BinaryExprAST>(std::move($1),NOT,std::move($3),drv.location);
-              }
               | NOT lexpression {
                        $$ = std::make_unique<UnaryExprAST>(UNOT,std::move($2),drv.location);
   } ; 
@@ -306,7 +302,7 @@
                        $$ = std::make_unique<BinaryExprAST>(std::move($1),MOD,std::move($3),drv.location);
        }
        | term DIV unary {
-                       $$ = std::make_unique<BinaryExprAST>(std::move($1),DIV,std::move($3),drv.location);
+                       $$ = std::make_unique<BinaryExprAST>(std::move($1),IDIV,std::move($3),drv.location);
   } ;
 
   unary: factor {
@@ -323,8 +319,11 @@
          | ID "(" argument_list ")" {
                        $$ = std::make_unique<InvocationAST>(std::move($1),std::move(*$3));
          }
-         | NUM {
-                       $$ = std::make_unique<NumAST>($1,drv.location);
+         | INT_NUM {
+                       $$ = std::make_unique<IntNumAST>($1,drv.location);
+         }
+         | DBL_NUM {
+                       $$ = std::make_unique<FloatingNumAST>($1,drv.location);
          }
          | "(" expression ")" {
                        $$ = std::move($2);

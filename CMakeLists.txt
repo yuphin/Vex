@@ -17,25 +17,26 @@ include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 set(SRC_FILES 
         src/main.cpp
-        src/codegen.cpp
-        src/parser.y
-        src/scanner.l
-        src/driver.cpp)
+        src/CodeGen.cpp
+        src/Parser.y
+        src/Scanner.l
+        src/Driver.cpp)
 set(HDR_FILES
-        src/ast.h
-        src/visitor.h
-        src/codegen.h
-        src/driver.h)
+        src/Context.h
+        src/Ast.h
+        src/Visitor.h
+        src/CodeGen.h
+        src/Driver.h)
 
 # Additional cleanup
 set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/location.hh" "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.output"  )
 
 flex_target(Scanner src/scanner.l
-       ${CMAKE_CURRENT_SOURCE_DIR}/src/scanner.cpp
+       ${CMAKE_CURRENT_SOURCE_DIR}/src/Scanner.cpp
         COMPILE_FLAGS)
 bison_target(Parser src/parser.y
-       ${CMAKE_CURRENT_SOURCE_DIR}/src/parser.cpp
-        DEFINES_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/parser.h
+       ${CMAKE_CURRENT_SOURCE_DIR}/src/Parser.cpp
+        DEFINES_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/Parser.h
         COMPILE_FLAGS "-v")
 add_flex_bison_dependency(Scanner Parser)
 # Add source to this project's executable.

@@ -16,7 +16,8 @@ struct ExprAST;
 struct BinaryExprAST;
 struct UnaryExprAST;
 struct VariableExprAST;
-struct NumAST;
+struct IntNumAST;
+struct FloatingNumAST;
 struct InvocationAST;
 // Statements
 struct StatementAST;
@@ -42,7 +43,8 @@ public:
     virtual llvm::Value* visit(BinaryExprAST& el) = 0;
     virtual llvm::Value* visit(UnaryExprAST& el) = 0;
     virtual llvm::Value* visit(VariableExprAST& el) = 0;
-    virtual llvm::Value* visit(NumAST& el) = 0;
+    virtual llvm::Value* visit(IntNumAST& el) = 0;
+    virtual llvm::Value* visit(FloatingNumAST& el) = 0;
     virtual llvm::Value* visit(InvocationAST& el) = 0;
     virtual llvm::Value* visit(StatementAST& el) = 0;
     virtual llvm::Value* visit(AssignmentStatementAST& el) = 0;

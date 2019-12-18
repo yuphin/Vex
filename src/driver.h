@@ -1,8 +1,7 @@
 #pragma once
 #include <string>
-#include <map>
-#include "parser.h"
-#include "ast.h"
+#include "Parser.h"
+#include "Context.h"
 
 // Give Flex the prototype of yylex we want ...
 # define YY_DECL \
@@ -12,9 +11,11 @@ YY_DECL;
 
 class driver {
 public:
+   
     driver();
     std::map<std::string, int> variables;
     std::unique_ptr<BaseAST> root;
+    std::unique_ptr<GlobalContext> global_context;
     int result;
     // Run the parser on file F.  Return 0 on success.
     int parse(const std::string& f);
@@ -24,6 +25,7 @@ public:
     // Scanner handling
     void scan_begin();
     void scan_end();
+    void generate_code();
     // Whether to generate scanner debug traces.
     bool trace_scanning;
     // The token's location used by the scanner.
