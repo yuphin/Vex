@@ -1,5 +1,5 @@
-// I know this is an anti-pattern but oh well
-#include <llvm/IR/Value.h>
+#pragma once
+#include "Context.h"
 
 // Variable types
 struct Type;

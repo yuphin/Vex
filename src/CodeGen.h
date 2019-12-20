@@ -1,7 +1,6 @@
 #pragma once
 #include "Visitor.h"
 #include "AST.h"
-#include "Context.h"
 
 struct CodeGenVisitor : public Visitor {
 
