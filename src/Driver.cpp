@@ -20,5 +20,6 @@ void driver::generate_code() {
     
     CodeGenVisitor cg("main", global_context.get());
     root->accept(cg);
+    cg.print_IR();
    // cg.print_IR();
 }

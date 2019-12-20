@@ -31,10 +31,10 @@ set(HDR_FILES
 # Additional cleanup
 set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/location.hh" "${CMAKE_CURRENT_SOURCE_DIR}/src/parser.output"  )
 
-flex_target(Scanner src/scanner.l
+flex_target(Scanner src/Scanner.l
        ${CMAKE_CURRENT_SOURCE_DIR}/src/Scanner.cpp
         COMPILE_FLAGS)
-bison_target(Parser src/parser.y
+bison_target(Parser src/Parser.y
        ${CMAKE_CURRENT_SOURCE_DIR}/src/Parser.cpp
         DEFINES_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/Parser.h
         COMPILE_FLAGS "-v")

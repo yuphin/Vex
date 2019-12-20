@@ -15,11 +15,12 @@ struct FunctionBodyAST;
 struct ExprAST;
 struct BinaryExprAST;
 struct UnaryExprAST;
-struct VariableExprAST;
+struct VariableAST;
 struct IntNumAST;
 struct FloatingNumAST;
 struct InvocationAST;
 // Statements
+struct StatementBlockAST;
 struct StatementAST;
 struct AssignmentStatementAST;
 struct ReturnStatementAST;
@@ -42,10 +43,11 @@ public:
     virtual llvm::Value* visit(ExprAST& el) = 0;
     virtual llvm::Value* visit(BinaryExprAST& el) = 0;
     virtual llvm::Value* visit(UnaryExprAST& el) = 0;
-    virtual llvm::Value* visit(VariableExprAST& el) = 0;
+    virtual llvm::Value* visit(VariableAST& el) = 0;
     virtual llvm::Value* visit(IntNumAST& el) = 0;
     virtual llvm::Value* visit(FloatingNumAST& el) = 0;
     virtual llvm::Value* visit(InvocationAST& el) = 0;
+    virtual llvm::Value* visit(StatementBlockAST& el) = 0;
     virtual llvm::Value* visit(StatementAST& el) = 0;
     virtual llvm::Value* visit(AssignmentStatementAST& el) = 0;
     virtual llvm::Value* visit(ReturnStatementAST& el) = 0;

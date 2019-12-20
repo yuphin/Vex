@@ -82,7 +82,7 @@
 %type <std::unique_ptr<Type>> type
 %type <obj_type> basic_type
 %type <std::unique_ptr<unsigned int>> vector_extension
-%type <std::unique_ptr<std::vector<std::unique_ptr<StatementAST>>>> statement_list
+%type <std::unique_ptr<StatementBlockAST>> statement_list
 %type <std::unique_ptr<TopAST>> unit program
 %type <std::unique_ptr<std::vector<std::unique_ptr<FunctionAST>>>> function_list
 %type <std::unique_ptr<FunctionAST>> function
@@ -135,7 +135,7 @@
   } ;
 
   function_body: declaration_list statement_list {
-                        $$ = std::make_unique<FunctionBodyAST>(std::move(*$1), std::move(*$2));
+                        $$ = std::make_unique<FunctionBodyAST>(std::move(*$1), std::move($2));
   } ;
 
   declaration_list: %empty { 
@@ -206,13 +206,13 @@
                    } ; 
 
   statement_list: statement ";" {
-                       $$ = std::make_unique<std::vector<std::unique_ptr<StatementAST>>>(); 
-                       $$->emplace_back(std::move($1));
+                       $$ = std::make_unique<StatementBlockAST>(); 
+                       $$->statement_list.emplace_back(std::move($1));
 
                  }
                  | statement_list statement ";" {
                        $$ = std::move($1);
-                       $$->emplace_back(std::move($2));
+                       $$->statement_list.emplace_back(std::move($2));
 
   } ;
 
@@ -352,24 +352,24 @@
 
   for_statement: FOR assignment_statement TO expression BY expression statement_list ENDFOR {
                         $$ = std::make_unique<ForStatementAST>(std::move($2),
-                            std::move($4),std::move($6),std::move(*$7)); 
+                            std::move($4),std::move($6),std::move($7)); 
                 }
                 | FOR assignment_statement TO expression statement_list ENDFOR {
                         $$ = std::make_unique<ForStatementAST>(std::move($2),
-                            std::move($4),std::move(*$5)); 
+                            std::move($4),std::move($5)); 
 
   } ;
 
   if_statement: IF lexpression THEN statement_list ENDIF {
-                        $$ = std::make_unique<IfStatementAST>(std::move($2),std::move(*$4));
+                        $$ = std::make_unique<IfStatementAST>(std::move($2),std::move($4));
                }
                | IF lexpression THEN statement_list ELSE statement_list ENDIF {
-                        $$ = std::make_unique<IfStatementAST>(std::move($2),std::move(*$4),std::move(*$6));
+                        $$ = std::make_unique<IfStatementAST>(std::move($2),std::move($4),std::move($6));
 
   } ;
 
   while_statement: WHILE lexpression DO statement_list ENDWHILE {
-                        $$ = std::make_unique<WhileStatementAST>(std::move($2),std::move(*$4));
+                        $$ = std::make_unique<WhileStatementAST>(std::move($2),std::move($4));
   } ;
 
   print_expression: expression {

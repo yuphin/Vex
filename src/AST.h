@@ -190,20 +190,20 @@ struct ForStatementAST : public StatementAST {
 	// TODO: Make this lists of assignment later
 	std::unique_ptr<AssignmentStatementAST> assign_statement;
 	std::unique_ptr<ExprAST> to_expr, by_expr;
-	std::vector<std::unique_ptr<StatementAST>> statement_list;
+	std::unique_ptr<StatementBlockAST> statement_block;
 
 	ForStatementAST(
 		std::unique_ptr<AssignmentStatementAST> assign_statement,
 		std::unique_ptr<ExprAST> to_expr,
-		std::vector<std::unique_ptr<StatementAST>> statement_list) :
+		std::unique_ptr<StatementBlockAST> statement_block) :
 		assign_statement(std::move(assign_statement)), to_expr(std::move(to_expr)),
-		statement_list(std::move(statement_list)) {}
+		statement_block(std::move(statement_block)) {}
 	ForStatementAST(
 		std::unique_ptr<AssignmentStatementAST> assign_statement,
 		std::unique_ptr<ExprAST> to_expr, std::unique_ptr<ExprAST> by_expr,
-		std::vector<std::unique_ptr<StatementAST>> statement_list) :
+		std::unique_ptr<StatementBlockAST> statement_block) :
 		assign_statement(std::move(assign_statement)), to_expr(std::move(to_expr)),
-		by_expr(std::move(by_expr)), statement_list(std::move(statement_list)) {}
+		by_expr(std::move(by_expr)), statement_block(std::move(statement_block)) {}
 	virtual llvm::Value* accept(Visitor& v) override {
 		return v.visit(*this);
 	}
@@ -211,17 +211,17 @@ struct ForStatementAST : public StatementAST {
 
 struct IfStatementAST : public StatementAST {
 	std::unique_ptr<ExprAST> if_expr;
-	std::vector<std::unique_ptr<StatementAST>> then_lst;
-	std::vector<std::unique_ptr<StatementAST>> else_lst;
+	std::unique_ptr<StatementBlockAST> then_blk;
+	std::unique_ptr<StatementBlockAST> else_blk = nullptr;
 
 	IfStatementAST(std::unique_ptr<ExprAST> if_expr,
-		std::vector<std::unique_ptr<StatementAST>> then_lst) :
-		if_expr(std::move(if_expr)), then_lst(std::move(then_lst)) {}
+		std::unique_ptr<StatementBlockAST> then_blk) :
+		if_expr(std::move(if_expr)), then_blk(std::move(then_blk)) {}
 	IfStatementAST(
 		std::unique_ptr<ExprAST> if_expr,
-		std::vector<std::unique_ptr<StatementAST>> then_lst,
-		std::vector<std::unique_ptr<StatementAST>> else_lst) :
-		if_expr(std::move(if_expr)), then_lst(std::move(then_lst)), else_lst(std::move(else_lst)) {}
+		std::unique_ptr<StatementBlockAST> then_blk,
+		std::unique_ptr<StatementBlockAST> else_blk) :
+		if_expr(std::move(if_expr)), then_blk(std::move(then_blk)), else_blk(std::move(else_blk)) {}
 	virtual  llvm::Value* accept(Visitor& v) override {
 		return v.visit(*this);
 	}
@@ -229,13 +229,13 @@ struct IfStatementAST : public StatementAST {
 
 struct WhileStatementAST : public StatementAST {
 	std::unique_ptr<ExprAST> while_expr;
-	std::vector<std::unique_ptr<StatementAST>> statement_list;
+	std::unique_ptr<StatementBlockAST> statement_block;
 
 
 
 	WhileStatementAST(std::unique_ptr<ExprAST> while_expr,
-		std::vector<std::unique_ptr<StatementAST>> statement_list) :
-		while_expr(std::move(while_expr)), statement_list(std::move(statement_list)) {}
+		std::unique_ptr<StatementBlockAST> statement_block) :
+		while_expr(std::move(while_expr)), statement_block(std::move(statement_block)) {}
 
 	virtual llvm::Value* accept(Visitor& v) override {
 		return v.visit(*this);
@@ -269,15 +269,25 @@ struct FunctionDeclAST : public BaseAST {
 };
 
 
+struct StatementBlockAST : public BaseAST {
+	std::vector<std::unique_ptr<StatementAST>> statement_list;
+
+	virtual llvm::Value* accept(Visitor& v) override {
+		return v.visit(*this);
+	}
+
+};
+
+
 struct FunctionBodyAST : public BaseAST {
 
 	std::vector<std::unique_ptr<VariableDeclAST>> declaration_list;
-	std::vector<std::unique_ptr<StatementAST>> statement_list;
+	std::unique_ptr<StatementBlockAST> statement_block;
 
 	FunctionBodyAST(std::vector<std::unique_ptr<VariableDeclAST>> declaration_list
-		, std::vector<std::unique_ptr<StatementAST>> statement_list) :
+		, std::unique_ptr<StatementBlockAST> statement_block) :
 		declaration_list(std::move(declaration_list)),
-		statement_list(std::move(statement_list)) {}
+		statement_block(std::move(statement_block)) {}
 	virtual  llvm::Value* accept(Visitor& v) override {
 		return v.visit(*this);
 	}

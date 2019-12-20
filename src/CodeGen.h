@@ -16,9 +16,6 @@ struct CodeGenVisitor : public Visitor {
 		Builder = std::make_unique<llvm::IRBuilder<>>(context);
 	}
 	void print_IR();
-	llvm::Value* symbol_lookup(const std::string& name);
-	llvm::Type* lookup_type(const Type& type);
-	llvm::Type* lookup_type(int type);
 	virtual llvm::Value* visit(BaseAST& el) override;
 	virtual llvm::Value* visit(TopAST& el) override;
 	virtual llvm::Value* visit(VariableDeclAST& el) override;
@@ -28,7 +25,7 @@ struct CodeGenVisitor : public Visitor {
 	virtual llvm::Value* visit(ExprAST& el) override;
 	virtual llvm::Value* visit(BinaryExprAST& el) override;
 	virtual llvm::Value* visit(UnaryExprAST& el) override;
-	virtual llvm::Value* visit(VariableExprAST& el) override;
+	virtual llvm::Value* visit(VariableAST& el) override;
 	virtual llvm::Value* visit(IntNumAST& el) override;
 	virtual llvm::Value* visit(FloatingNumAST& el) override;
 	virtual llvm::Value* visit(AssignmentStatementAST& el) override;
@@ -40,4 +37,16 @@ struct CodeGenVisitor : public Visitor {
 	virtual llvm::Value* visit(WhileStatementAST& el) override;
 	virtual llvm::Value* visit(InvocationAST& el) override;
 	virtual llvm::Value* visit(StatementAST& el) override;
+	virtual llvm::Value* visit(StatementBlockAST& el) override;
+
+	private:
+	llvm::Value* symbol_lookup(const std::string& name);
+	llvm::Type* lookup_type(const Type& type);
+	llvm::Type* lookup_type(int type);
+	llvm::Value* create_cmp(llvm::Value* LHS, const llvm::Twine& name = "");
+	llvm::AllocaInst* insert_alloca(llvm::Function* func,
+		const std::string& var_name, llvm::Type* type);
+
+
 };
+

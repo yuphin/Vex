@@ -1,7 +1,7 @@
 % this is a comment
 var test_3145_ABC : int;
 var basic_arr : int[12];
-var var9794965 : real[];
+var var9794965 : real[4];
 var var1: int, var2: real, var3: int[23];
 
 int func bar()
