@@ -262,9 +262,7 @@ llvm::Value* CodeGenVisitor::visit(FunctionBodyAST& el) {
 	for (auto& decl : el.declaration_list) {
 		decl->accept(*this);
 	}
-	for (auto& stat : el.statement_block->statement_list) {
-		stat->accept(*this);
-	}
+	el.statement_block->accept(*this);
 	return nullptr;
 }
 
@@ -531,9 +529,14 @@ llvm::Value* CodeGenVisitor::visit(InvocationAST& el) {
 }
 
 llvm::Value* CodeGenVisitor::visit(StatementAST& el) {
+
 	return nullptr;
 }
 
 llvm::Value* CodeGenVisitor::visit(StatementBlockAST& el) {
+	for (auto& stat : el.statement_list) {
+		stat->accept(*this);
+	}
+
 	return nullptr;
 }
