@@ -2,6 +2,7 @@
 #include "Visitor.h"
 #include "AST.h"
 
+
 struct CodeGenVisitor : public Visitor {
 
 	llvm::LLVMContext context;
@@ -42,10 +43,13 @@ struct CodeGenVisitor : public Visitor {
 	llvm::Value* symbol_lookup(const std::string& name);
 	llvm::Type* lookup_type(const Type& type);
 	llvm::Type* lookup_type(int type);
-	llvm::Value* create_cmp(llvm::Value* LHS, const llvm::Twine& name = "");
+	llvm::Type* get_type(llvm::Value* V);
+	llvm::Value* create_binary(llvm::Value* LHS, llvm::Value* RHS, int op,const llvm::Twine&);
+	std::pair<llvm::Value*, llvm::Value*> cast_values(llvm::Value* LHS, llvm::Value* RHS);
+	llvm::Value* create_cmp(llvm::Value* LHS, llvm::Value* RHS, llvm::CmpInst::Predicate P, const llvm::Twine& name = "");
 	llvm::AllocaInst* insert_alloca(llvm::Function* func,
 		const std::string& var_name, llvm::Type* type);
-
+	llvm::Value* cast_according_to(llvm::Value* LHS, llvm::Value* RHS);
 
 };
 

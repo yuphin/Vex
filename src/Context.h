@@ -12,7 +12,7 @@
 #include <llvm/IR/GlobalVariable.h>
 
 struct FuncContext {
-    std::unordered_map<std::string, llvm::Value*> sym_tab;
+    std::unordered_map<std::string, llvm::AllocaInst*> sym_tab;
 
 };
 struct GlobalContext {

@@ -76,23 +76,277 @@ llvm::Type* CodeGenVisitor::lookup_type(int type) {
 
 }
 
-llvm::Value* CodeGenVisitor::create_cmp(llvm::Value* LHS, const llvm::Twine& name) {
-	auto L_Type = LHS->getType();
-	auto zero_int = llvm::ConstantInt::get(context, llvm::APInt(32, 0, true));
-	auto zero_float = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
-	if (L_Type->isIntegerTy()) {
-		return Builder->CreateICmpNE(LHS, zero_int, name);
-	} else if (L_Type->isDoubleTy()) {
-		return Builder->CreateFCmpONE(LHS, zero_float, name);
+llvm::Type* CodeGenVisitor::get_type(llvm::Value* V) {
+	llvm::Type* t;
+	if (auto ai = llvm::dyn_cast<llvm::AllocaInst>(V)) {
+		t = ai->getAllocatedType();
+	} else if (auto ai = llvm::dyn_cast<llvm::GlobalValue>(V)) {
+		t = ai->getValueType();
+	} else {
+		t = V->getType();
+	}
+	return t;
+}
+
+llvm::Value* CodeGenVisitor::create_binary(llvm::Value* LHS, llvm::Value* RHS, int op, const llvm::Twine& name = "") {
+	llvm::Type* l_type = get_type(LHS);
+
+	switch (op) {
+	case EQ: {
+		if (l_type->isIntegerTy()) {
+			return Builder->CreateICmp(llvm::CmpInst::ICMP_EQ, LHS, RHS, "tmpeq");
+		} else {
+			return Builder->CreateFCmp(llvm::CmpInst::FCMP_OEQ, LHS, RHS, "tmpeq");
+		}
+		break;
+	}
+	case NEQ: {
+		if (l_type->isIntegerTy()) {
+			return Builder->CreateICmp(llvm::CmpInst::ICMP_NE, LHS, RHS, "tmpneq");
+		} else {
+			auto r_type = get_type(RHS);
+			return Builder->CreateFCmp(llvm::CmpInst::FCMP_ONE, LHS, RHS, "tmpneq");
+		}
+		break;
+	}
+	case LT: {
+		if (l_type->isIntegerTy()) {
+			return Builder->CreateICmp(llvm::CmpInst::ICMP_SLT, LHS, RHS, "tmplt");
+		} else {
+			return Builder->CreateFCmp(llvm::CmpInst::FCMP_OLT, LHS, RHS, "tmplt");
+		}
+		break;
+	}
+	case GT: {
+		if (l_type->isIntegerTy()) {
+			return Builder->CreateICmp(llvm::CmpInst::ICMP_SGT, LHS, RHS, "tmpgt");
+		} else {
+			return Builder->CreateFCmp(llvm::CmpInst::FCMP_OGT, LHS, RHS, "tmpgt");
+		}
+		break;
+	}
+	case LTE: {
+		if (l_type->isIntegerTy()) {
+			return Builder->CreateICmp(llvm::CmpInst::ICMP_SLE, LHS, RHS, "tmplte");
+		} else {
+			return Builder->CreateFCmp(llvm::CmpInst::FCMP_OLE, LHS, RHS, "tmplte");
+		}
+		break;
+	}
+	case GTE: {
+		if (l_type->isIntegerTy()) {
+			return Builder->CreateICmp(llvm::CmpInst::ICMP_SGE, LHS, RHS, "tmpgte");
+		} else {
+			return Builder->CreateFCmp(llvm::CmpInst::FCMP_OGE, LHS, RHS, "tmpgte");
+		}
+		break;
+	}
+	case AND: {
+		// Logical and
+		auto r_type = get_type(RHS);
+		llvm::Function* enclosing_func = Builder->GetInsertBlock()->getParent();
+		llvm::BasicBlock* first_block = llvm::BasicBlock::Create(context, "and_1", enclosing_func);
+		llvm::BasicBlock* second_block = llvm::BasicBlock::Create(context, "and_exit", enclosing_func);
+
+		llvm::Value* zero_val_l;
+		llvm::Value* zero_val_r;
+		if (l_type->isIntegerTy()) {
+			zero_val_l = llvm::ConstantInt::get(context, llvm::APInt(32, 0, true));
+		} else {
+			zero_val_l = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
+		}
+
+		if (r_type->isIntegerTy()) {
+			zero_val_r = llvm::ConstantInt::get(context, llvm::APInt(32, 0, true));
+		} else {
+			zero_val_r = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
+		}
+
+		// Check if the first expr is not equal to 0 
+		auto not_zero_l = create_binary(LHS, zero_val_l, NEQ);
+
+		Builder->CreateCondBr(not_zero_l, first_block, second_block);
+		Builder->SetInsertPoint(first_block);
+		auto not_zero_r = create_binary(RHS, zero_val_r, NEQ);
+		Builder->CreateBr(second_block);
+		enclosing_func->getBasicBlockList().push_back(second_block);
+		Builder->SetInsertPoint(second_block);
+		llvm::PHINode* pn = Builder->CreatePHI(llvm::Type::getInt1Ty(context), 2, "and_merge");
+		auto false_t = llvm::ConstantInt::getFalse(llvm::Type::getInt1Ty(context));
+		pn->addIncoming(false_t, Builder->GetInsertBlock());
+		pn->addIncoming(not_zero_r, first_block);
+		return pn;
+
+		break;
+	}
+	case OR: {
+		// Logical or
+		auto r_type = get_type(RHS);
+		llvm::Function* enclosing_func = Builder->GetInsertBlock()->getParent();
+		llvm::BasicBlock* first_block = llvm::BasicBlock::Create(context, "or_1", enclosing_func);
+		llvm::BasicBlock* second_block = llvm::BasicBlock::Create(context, "or_exit", enclosing_func);
+
+		llvm::Value* zero_val_l;
+		llvm::Value* zero_val_r;
+		if (l_type->isIntegerTy()) {
+			zero_val_l = llvm::ConstantInt::get(context, llvm::APInt(32, 0, true));
+		} else {
+			zero_val_l = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
+		}
+
+		if (r_type->isIntegerTy()) {
+			zero_val_r = llvm::ConstantInt::get(context, llvm::APInt(32, 0, true));
+		} else {
+			zero_val_r = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
+		}
+
+		// Check if the first expr is not equal to 0 
+		auto zero_l = create_binary(LHS, zero_val_l, EQ);
+
+		Builder->CreateCondBr(zero_l, first_block, second_block);
+		Builder->SetInsertPoint(first_block);
+		auto zero_r = create_binary(RHS, zero_val_r, NEQ);
+		Builder->CreateBr(second_block);
+		enclosing_func->getBasicBlockList().push_back(second_block);
+		Builder->SetInsertPoint(second_block);
+		llvm::PHINode* pn = Builder->CreatePHI(llvm::Type::getInt1Ty(context), 2, "and_e");
+		auto true_t = llvm::ConstantInt::getTrue(llvm::Type::getInt1Ty(context));
+		pn->addIncoming(true_t, Builder->GetInsertBlock());
+		pn->addIncoming(zero_r, first_block);
+		return pn;
+
+		break;
+
+	}
+	case NOT: {
+
+		break;
+	}
+	case ADD: {
+		if (l_type->isIntegerTy()) {
+			return Builder->CreateAdd(LHS, RHS, "addtmp");
+		} else {
+			return Builder->CreateFAdd(LHS, RHS, "addtmp");
+		}
+		break;
+	}
+	case SUB: {
+		if (l_type->isIntegerTy()) {
+			return Builder->CreateSub(LHS, RHS, "subtmp");
+		} else {
+			return Builder->CreateFSub(LHS, RHS, "subtmp");
+		}
+		break;
+	}
+	case MULT: {
+		if (l_type->isIntegerTy()) {
+			return Builder->CreateMul(LHS, RHS, "multmp");
+		} else {
+			return Builder->CreateFMul(LHS, RHS, "multmp");
+		}
+		break;
+	}
+	case DIV: {
+		if (l_type->isIntegerTy()) {
+			// Never going to be called
+			return nullptr;
+		} else {
+			return Builder->CreateFDiv(LHS, RHS, "tmpdiv");
+		}
+		break;
+	}
+	case IDIV: {
+		if (l_type->isIntegerTy()) {
+			return Builder->CreateSDiv(LHS, RHS, "tmpidiv");
+		} else {
+			// Never going to be called
+			return nullptr;
+		}
+		break;
+	}
+	case MOD: {
+		if (l_type->isIntegerTy()) {
+			return Builder->CreateSRem(LHS, RHS, "tmpmod");
+		} else {
+			return Builder->CreateFRem(LHS, RHS, "tmpmod");
+		}
+		break;
+	}
+	default:
+		std::cerr << "Invalid binary operator\n";
+		break;
 	}
 	return nullptr;
 }
 
-llvm::AllocaInst* CodeGenVisitor::insert_alloca(llvm::Function* func, 
-	const std::string& var_name,llvm::Type* type) {
+std::pair<llvm::Value*, llvm::Value*> CodeGenVisitor::cast_values(llvm::Value* LHS, llvm::Value* RHS) {
+	llvm::Type* l_type = get_type(LHS);
+	llvm::Type* r_type = get_type(RHS);
 
-	 llvm::IRBuilder<> tmp_builder(&func->getEntryBlock(),func->getEntryBlock().begin());
-	 return tmp_builder.CreateAlloca(type,0,var_name);
+	if ((l_type->isIntegerTy() && r_type->isIntegerTy()) ||
+		(l_type->isDoubleTy() && r_type->isDoubleTy())) {
+		return std::make_pair(LHS, RHS);
+
+	} else if (l_type->isIntegerTy() && r_type->isDoubleTy()) {
+		auto casted_LHS = Builder->CreateSIToFP(LHS, r_type, "casttmp");
+		return std::make_pair(casted_LHS, RHS);
+	} else {
+		auto casted_RHS = Builder->CreateSIToFP(RHS, l_type, "casttmp");
+		return std::make_pair(LHS, casted_RHS);
+
+	}
+}
+
+llvm::Value* CodeGenVisitor::create_cmp(llvm::Value* LHS, llvm::Value* RHS,
+	llvm::CmpInst::Predicate P, const llvm::Twine& name) {
+	llvm::Type* l_type;
+	llvm::Type* r_type;
+	if (auto ail = llvm::dyn_cast<llvm::AllocaInst>(LHS)) {
+		l_type = ail->getAllocatedType();
+	} else {
+		l_type = LHS->getType();
+	}
+	if (auto air = llvm::dyn_cast<llvm::AllocaInst>(RHS)) {
+		r_type = air->getAllocatedType();
+	} else {
+		r_type = RHS->getType();
+	}
+
+	if (l_type->isDoubleTy() || r_type->isDoubleTy()) {
+		return Builder->CreateFCmp(P, LHS, RHS, name);
+	} else {
+		return Builder->CreateICmp(P, LHS, RHS, name);
+	}
+	return nullptr;
+
+}
+
+
+llvm::AllocaInst* CodeGenVisitor::insert_alloca(llvm::Function* func,
+	const std::string& var_name, llvm::Type* type) {
+
+	llvm::IRBuilder<> tmp_builder(&func->getEntryBlock(), func->getEntryBlock().begin());
+	return tmp_builder.CreateAlloca(type, 0, var_name);
+}
+
+llvm::Value* CodeGenVisitor::cast_according_to(llvm::Value* LHS, llvm::Value* RHS) {
+	llvm::Type* l_type = get_type(LHS);
+	llvm::Type* r_type = get_type(RHS);
+
+	if ((l_type->isIntegerTy() && r_type->isIntegerTy()) ||
+		(l_type->isDoubleTy() && r_type->isDoubleTy())) {
+		return RHS;
+
+	} else if (l_type->isIntegerTy() && r_type->isDoubleTy()) {
+		auto casted_RHS = Builder->CreateFPToSI(RHS, l_type, "casttmp");
+		return casted_RHS;
+	} else {
+		auto casted_RHS = Builder->CreateSIToFP(RHS, l_type, "casttmp");
+		return casted_RHS;
+
+	}
+
+	return nullptr;
 }
 
 llvm::Value* CodeGenVisitor::visit(IntNumAST& el) {
@@ -115,9 +369,10 @@ llvm::Value* CodeGenVisitor::visit(AssignmentStatementAST& el) {
 		std::cerr << "Unknown variable \n";
 		return nullptr;
 	}
-	Builder->CreateStore(rhs_expr, var);
+	auto casted = cast_according_to(var, rhs_expr);
+	Builder->CreateStore(casted, var);
 	// We don't really need to return var
-	return nullptr;
+	return casted;
 }
 
 llvm::Value* CodeGenVisitor::visit(ReturnStatementAST& el) {
@@ -140,9 +395,16 @@ llvm::Value* CodeGenVisitor::visit(IfStatementAST& el) {
 	if (!condition) {
 		return nullptr;
 	}
-	auto has_else = (el.else_blk != nullptr);
 
-	condition = create_cmp(condition, "if_expr");
+	auto has_else = (el.else_blk != nullptr);
+	auto condition_type = get_type(condition);
+	llvm::Value* zero_val;
+	if (condition_type->isIntegerTy()) {
+		zero_val = llvm::ConstantInt::getFalse(llvm::Type::getInt1Ty(context));
+	} else {
+		zero_val = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
+	}
+	condition = create_binary(condition, zero_val, NEQ, "if_expr");
 	llvm::Function* enclosing_func = Builder->GetInsertBlock()->getParent();
 	llvm::BasicBlock* then_b = llvm::BasicBlock::Create(context, "then", enclosing_func);
 	llvm::BasicBlock* if_cont = llvm::BasicBlock::Create(context, "ifcont");
@@ -169,10 +431,85 @@ llvm::Value* CodeGenVisitor::visit(IfStatementAST& el) {
 }
 
 llvm::Value* CodeGenVisitor::visit(ForStatementAST& el) {
+	llvm::Function* enclosing_func = Builder->GetInsertBlock()->getParent();
+	auto assigned_value = el.assign_statement->accept(*this);
+	auto test_block = llvm::BasicBlock::Create(context, "looptest", enclosing_func);
+	auto loop_block = llvm::BasicBlock::Create(context, "loop", enclosing_func);
+	auto step_block = llvm::BasicBlock::Create(context, "loopstep", enclosing_func);
+	auto cont_block = llvm::BasicBlock::Create(context, "loopcont", enclosing_func);
+	// Jump to loop block for testing
+	Builder->CreateBr(test_block);
+	Builder->SetInsertPoint(test_block);
+	auto to_expr = el.to_expr->accept(*this);
+
+	// Returns pair of potentially casted values
+	auto casted = cast_values(assigned_value, to_expr);
+	auto cmp_expr = create_binary(casted.first, casted.second, NEQ, "to_comp");
+	// Do the test, end for if necessary
+	Builder->CreateCondBr(cmp_expr, loop_block, cont_block);
+
+	// enclosing_func->getBasicBlockList().push_back(loop_block);
+	Builder->SetInsertPoint(loop_block);
+	el.statement_block->accept(*this);
+
+	// Go to the step part
+	Builder->CreateBr(step_block);
+
+	Builder->SetInsertPoint(step_block);
+	// Potentially cast Lvalue or ByExpr to double 
+	if (el.by_expr) {
+		casted = cast_values(assigned_value, el.by_expr->accept(*this));
+	} else if (assigned_value->getType()->isIntegerTy()) {
+		auto one_int = llvm::ConstantInt::get(context, llvm::APInt(32, 1, true));
+		casted = std::make_pair(assigned_value, one_int);
+	} else {
+		auto one_float = llvm::ConstantFP::get(context, llvm::APFloat(1.0));
+		casted = std::make_pair(assigned_value, one_float);
+	}
+	// Example : Lvalue-> Int, ByExpr-> Double then we want to do double+double
+	auto add_val = create_binary(casted.first, casted.second, ADD);
+	// We need to load Lvalue
+	auto l_value = symbol_lookup(el.assign_statement->lvalue->name);
+	auto l_type = get_type(l_value);
+	Builder->CreateLoad(l_type, l_value, l_value->getName());
+	// Before storing to Lvalue, we need to convert back to Lvalue's type regardless
+	auto casted_add = cast_according_to(l_value, add_val);
+	Builder->CreateStore(casted_add, l_value);
+	Builder->CreateBr(test_block);
+	// End of the loop
+	Builder->SetInsertPoint(cont_block);
 	return nullptr;
 }
 
 llvm::Value* CodeGenVisitor::visit(WhileStatementAST& el) {
+	llvm::Function* enclosing_func = Builder->GetInsertBlock()->getParent();
+	auto test_block = llvm::BasicBlock::Create(context, "looptest", enclosing_func);
+	auto loop_block = llvm::BasicBlock::Create(context, "loop", enclosing_func);
+	auto cont_block = llvm::BasicBlock::Create(context, "loopcont", enclosing_func);
+	// Jump to loop block for testing
+	Builder->CreateBr(test_block);
+	auto while_val = el.while_expr->accept(*this);
+
+	llvm::Value* zero_val;
+	auto expr_type = get_type(while_val);
+	if (expr_type->isIntegerTy()) {
+		zero_val = llvm::ConstantInt::getFalse(llvm::Type::getInt1Ty(context));
+	} else {
+		zero_val = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
+	}
+	while_val = create_binary(while_val, zero_val, NEQ, "while_expr");
+	// Do the test, end while if necessary
+	Builder->CreateCondBr(while_val, loop_block, cont_block);
+
+	// Loop block
+	Builder->SetInsertPoint(loop_block);
+	el.statement_block->accept(*this);
+
+	// Go to the beginning of the loop for testing
+	Builder->CreateBr(test_block);
+
+	// After loop
+	Builder->SetInsertPoint(cont_block);
 	return nullptr;
 }
 
@@ -205,7 +542,7 @@ llvm::Value* CodeGenVisitor::visit(VariableDeclAST& el) {
 	} else {
 		// We are in the function context
 		auto enclosing_func = Builder->GetInsertBlock()->getParent();
-		auto val = insert_alloca(enclosing_func, el.name, 
+		auto val = insert_alloca(enclosing_func, el.name,
 			lookup_type(*el.var_type));
 		unit_context->call_stack.top().sym_tab[el.name] = val;
 	}
@@ -229,9 +566,9 @@ llvm::Value* CodeGenVisitor::visit(FunctionAST& el) {
 
 	// Record the function arguments in the symbol map.
 	for (auto& arg : func->args()) {
-		auto v_alloca = insert_alloca(func, arg.getName(),arg.getType());
+		auto v_alloca = insert_alloca(func, arg.getName(), arg.getType());
 		Builder->CreateStore(&arg, v_alloca);
-		unit_context->call_stack.top().sym_tab[arg.getName()] = &arg;
+		unit_context->call_stack.top().sym_tab[arg.getName()] = v_alloca;
 	}
 	el.body->accept(*this);
 	llvm::verifyFunction(*func);
@@ -273,218 +610,25 @@ llvm::Value* CodeGenVisitor::visit(ExprAST& el) {
 llvm::Value* CodeGenVisitor::visit(BinaryExprAST& el) {
 	llvm::Value* L = el.LHS->accept(*this);
 	llvm::Value* R = el.RHS->accept(*this);
-	auto L_type = L->getType();
-	auto R_type = R->getType();
-	if (!L || !R)
-		return nullptr;
-
-
-
-	switch (el.binop) {
-	case ADD: {
-		if (typeid(L_type).hash_code() == typeid(R_type).hash_code()) {
-			if (L_type->isIntegerTy(32)) {
-				return Builder->CreateAdd(L, R, "addtmp");
-			} else if (L_type->isDoubleTy()) {
-				return Builder->CreateFAdd(L, R, "addtmp");
-			} else {
-				/* New types might be added in the future */
-			}
-
-		} else if (L_type->isDoubleTy() && !R_type->isDoubleTy()) {
-			Builder->CreateSIToFP(R, L_type, "casttmp");
-			return Builder->CreateFAdd(L, R, "addtmp");
-
-		} else if (R_type->isDoubleTy() && !L_type->isDoubleTy()) {
-			Builder->CreateSIToFP(L, R_type, "casttmp");
-			return Builder->CreateFAdd(L, R, "addtmp");
-		}
+	if (el.binop != AND || el.binop != OR) {
+		auto casted = cast_values(L, R);
+		return create_binary(casted.first, casted.second, el.binop);
+	} else {
+		return create_binary(L, R, el.binop);
 	}
-	case SUB: {
-		if (typeid(L_type).hash_code() == typeid(R_type).hash_code()) {
-			if (L_type->isIntegerTy(32)) {
-				return Builder->CreateSub(L, R, "subtmp");
-			} else if (L_type->isDoubleTy()) {
-				return Builder->CreateFSub(L, R, "subtmp");
-			}
-		} else if (L_type->isDoubleTy() && !R_type->isDoubleTy()) {
-			Builder->CreateSIToFP(R, L_type, "casttmp");
-			return Builder->CreateFSub(L, R, "subtmp");
-
-		} else if (R_type->isDoubleTy() && !L_type->isDoubleTy()) {
-			Builder->CreateSIToFP(L, R_type, "casttmp");
-			return Builder->CreateFSub(L, R, "subtmp");
-		}
-	}
-	case MULT: {
-		if (typeid(L_type).hash_code() == typeid(R_type).hash_code()) {
-			if (L_type->isIntegerTy(32)) {
-				return Builder->CreateMul(L, R, "tmpmult");
-			} else if (L_type->isDoubleTy()) {
-				return Builder->CreateFMul(L, R, "tmpmult");
-			} else {
-				/* New types might be added in the future */
-			}
-
-		} else if (L_type->isDoubleTy() && !R_type->isDoubleTy()) {
-			Builder->CreateSIToFP(R, L_type, "casttmp");
-			return Builder->CreateFMul(L, R, "tmpmult");
-
-		} else if (R_type->isDoubleTy() && !L_type->isDoubleTy()) {
-			Builder->CreateSIToFP(L, R_type, "casttmp");
-			return Builder->CreateFMul(L, R, "tmpmult");
-		}
-	}
-	case LT: {
-		if (typeid(L_type).hash_code() == typeid(R_type).hash_code()) {
-			return Builder->CreateFCmpULT(L, R, "tmplt");
-
-		} else if (L_type->isDoubleTy() && !R_type->isDoubleTy()) {
-			Builder->CreateSIToFP(R, L_type, "casttmp");
-			return Builder->CreateFCmpULT(L, R, "tmplt");
-
-		} else if (R_type->isDoubleTy() && !L_type->isDoubleTy()) {
-			Builder->CreateSIToFP(L, R_type, "casttmp");
-			return Builder->CreateFCmpULT(L, R, "tmplt");
-		}
-
-	}
-	case GT: {
-		if (typeid(L_type).hash_code() == typeid(R_type).hash_code()) {
-			return Builder->CreateFCmpUGT(L, R, "tmpgt");
-
-		} else if (L_type->isDoubleTy() && !R_type->isDoubleTy()) {
-			Builder->CreateSIToFP(R, L_type, "casttmp");
-			return Builder->CreateFCmpUGT(L, R, "tmpgt");
-
-		} else if (R_type->isDoubleTy() && !L_type->isDoubleTy()) {
-			Builder->CreateSIToFP(L, R_type, "casttmp");
-			return Builder->CreateFCmpUGT(L, R, "tmpgt");
-		}
-	}
-	case LTE: {
-		if (typeid(L_type).hash_code() == typeid(R_type).hash_code()) {
-			return Builder->CreateFCmpULE(L, R, "tmplte");
-
-		} else if (L_type->isDoubleTy() && !R_type->isDoubleTy()) {
-			Builder->CreateSIToFP(R, L_type, "casttmp");
-			return Builder->CreateFCmpULE(L, R, "tmplte");
-
-		} else if (R_type->isDoubleTy() && !L_type->isDoubleTy()) {
-			Builder->CreateSIToFP(L, R_type, "casttmp");
-			return Builder->CreateFCmpULE(L, R, "tmplte");
-		}
-	}
-	case GTE: {
-		if (typeid(L_type).hash_code() == typeid(R_type).hash_code()) {
-			return Builder->CreateFCmpUGE(L, R, "tmpgte");
-
-		} else if (L_type->isDoubleTy() && !R_type->isDoubleTy()) {
-			Builder->CreateSIToFP(R, L_type, "casttmp");
-			return Builder->CreateFCmpUGE(L, R, "tmpgte");
-
-		} else if (R_type->isDoubleTy() && !L_type->isDoubleTy()) {
-			Builder->CreateSIToFP(L, R_type, "casttmp");
-			return Builder->CreateFCmpUGE(L, R, "tmpgte");
-		}
-	}
-	case EQ: {
-		if (typeid(L_type).hash_code() == typeid(R_type).hash_code()) {
-			return Builder->CreateFCmpUEQ(L, R, "tmpeq");
-
-		} else if (L_type->isDoubleTy() && !R_type->isDoubleTy()) {
-			Builder->CreateSIToFP(R, L_type, "casttmp");
-			return Builder->CreateFCmpUEQ(L, R, "tmpeq");
-
-		} else if (R_type->isDoubleTy() && !L_type->isDoubleTy()) {
-			Builder->CreateSIToFP(L, R_type, "casttmp");
-			return Builder->CreateFCmpUEQ(L, R, "tmpeq");
-		}
-	}
-	case AND: {
-		if (typeid(L_type).hash_code() == typeid(R_type).hash_code()) {
-			return Builder->CreateAnd(L, R, "tmpand");
-
-		} else if (L_type->isDoubleTy() && !R_type->isDoubleTy()) {
-			Builder->CreateSIToFP(R, L_type, "casttmp");
-			return Builder->CreateAnd(L, R, "tmpand");
-
-		} else if (R_type->isDoubleTy() && !L_type->isDoubleTy()) {
-			Builder->CreateSIToFP(L, R_type, "casttmp");
-			return Builder->CreateAnd(L, R, "tmpand");
-		}
-	}
-	case OR: {
-		if (typeid(L_type).hash_code() == typeid(R_type).hash_code()) {
-			return Builder->CreateOr(L, R, "tmpor");
-
-		} else if (L_type->isDoubleTy() && !R_type->isDoubleTy()) {
-			Builder->CreateSIToFP(R, L_type, "casttmp");
-			return Builder->CreateOr(L, R, "tmpor");
-
-		} else if (R_type->isDoubleTy() && !L_type->isDoubleTy()) {
-			Builder->CreateSIToFP(L, R_type, "casttmp");
-			return Builder->CreateOr(L, R, "tmpor");
-		}
-	}
-	case MOD: {
-		if (typeid(L_type).hash_code() == typeid(R_type).hash_code()) {
-			if (L_type->isIntegerTy(32)) {
-				return Builder->CreateSRem(L, R, "tmpmod");
-			} else if (L_type->isDoubleTy()) {
-				return Builder->CreateFRem(L, R, "tmpmod");
-			} else {
-				/* New types might be added in the future */
-			}
-		} else if (L_type->isDoubleTy() && !R_type->isDoubleTy()) {
-			Builder->CreateSIToFP(R, L_type, "casttmp");
-			return Builder->CreateFRem(L, R, "tmpmod");
-
-		} else if (R_type->isDoubleTy() && !L_type->isDoubleTy()) {
-			Builder->CreateSIToFP(L, R_type, "casttmp");
-			return Builder->CreateFRem(L, R, "tmpmod");
-		}	}
-	case DIV: {
-		if (typeid(L_type).hash_code() == typeid(R_type).hash_code()) {
-			if (L_type->isDoubleTy()) {
-				return Builder->CreateFDiv(L, R, "tmpdiv");
-			}
-		} else if (L_type->isDoubleTy() && !R_type->isDoubleTy()) {
-			Builder->CreateSIToFP(R, L_type, "casttmp");
-			return Builder->CreateFDiv(L, R, "tmpdiv");
-
-		} else if (R_type->isDoubleTy() && !L_type->isDoubleTy()) {
-			Builder->CreateSIToFP(L, R_type, "casttmp");
-			return Builder->CreateFDiv(L, R, "tmpdiv");
-		}
-	}
-	case IDIV: {
-		if (typeid(L_type).hash_code() == typeid(R_type).hash_code()) {
-			if (L_type->isIntegerTy()) {
-				return Builder->CreateFDiv(L, R, "tmpidiv");
-			}
-		}
-	}
-	default: {
-		std::cerr << "Invalid binary operator\n";
-		return nullptr;
-	}
-	}
-
-	return nullptr;
 }
 
 llvm::Value* CodeGenVisitor::visit(UnaryExprAST& el) {
 	llvm::Value* V = el.LHS->accept(*this);
+	auto V_type = get_type(V);
 	switch (el.unop) {
 	case UNOT: {
 		return Builder->CreateNot(V, "tmpnot");
 	}
 	case MINUS: {
-		auto V_type = V->getType();
-		if (V_type->isDoubleTy()) {
+		if (V_type->isIntegerTy()) {
 			return Builder->CreateNeg(V, "tmpneg");
-		} else if (V_type->isIntegerTy()) {
+		} else if (V_type->isDoubleTy()) {
 			return Builder->CreateFNeg(V, "tmpneg");
 		}
 	}
@@ -503,7 +647,8 @@ llvm::Value* CodeGenVisitor::visit(VariableAST& el) {
 		return nullptr;
 		std::cerr << "Unknown variable!\n";
 	}
-	return Builder->CreateLoad(v, el.name);;
+	auto type = get_type(v);
+	return Builder->CreateLoad(type, v, el.name);;
 
 }
 

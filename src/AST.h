@@ -10,7 +10,7 @@
 enum obj_type { INT = 0, REAL = 1};
 
 // Current binary operators
-enum bin_op { EQ, LT, GT, LTE, GTE, AND, OR, NOT, ADD, SUB, MULT, DIV, IDIV, MOD };
+enum bin_op { EQ, NEQ, LT, GT, LTE, GTE, AND, OR, NOT, ADD, SUB, MULT, DIV, IDIV, MOD };
 
 // Current unary operators
 enum un_op { UNOT, MINUS };
