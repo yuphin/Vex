@@ -76,7 +76,7 @@ llvm::Type* CodeGenVisitor::lookup_type(int type) {
 
 }
 
-llvm::Type* CodeGenVisitor::get_type(llvm::Value* V) {
+llvm::Type* CodeGenVisitor::get_type(llvm::Value* V, bool underlying_type = false) {
 	llvm::Type* t;
 	if (auto ai = llvm::dyn_cast<llvm::AllocaInst>(V)) {
 		t = ai->getAllocatedType();
@@ -85,11 +85,18 @@ llvm::Type* CodeGenVisitor::get_type(llvm::Value* V) {
 	} else {
 		t = V->getType();
 	}
+
+	if (underlying_type) {
+		if (auto ai = llvm::dyn_cast<llvm::SequentialType>(t)) {
+			t = ai->getElementType();
+		}
+	}
 	return t;
 }
 
+
 llvm::Value* CodeGenVisitor::create_binary(llvm::Value* LHS, llvm::Value* RHS, int op, const llvm::Twine& name = "") {
-	llvm::Type* l_type = get_type(LHS);
+	llvm::Type* l_type = get_type(LHS,true);
 
 	switch (op) {
 	case EQ: {
@@ -104,7 +111,6 @@ llvm::Value* CodeGenVisitor::create_binary(llvm::Value* LHS, llvm::Value* RHS, i
 		if (l_type->isIntegerTy()) {
 			return Builder->CreateICmp(llvm::CmpInst::ICMP_NE, LHS, RHS, "tmpneq");
 		} else {
-			auto r_type = get_type(RHS);
 			return Builder->CreateFCmp(llvm::CmpInst::FCMP_ONE, LHS, RHS, "tmpneq");
 		}
 		break;
@@ -143,7 +149,8 @@ llvm::Value* CodeGenVisitor::create_binary(llvm::Value* LHS, llvm::Value* RHS, i
 	}
 	case AND: {
 		// Logical and
-		auto r_type = get_type(RHS);
+		auto r_type = get_type(RHS,true);
+
 		llvm::Function* enclosing_func = Builder->GetInsertBlock()->getParent();
 		llvm::BasicBlock* first_block = llvm::BasicBlock::Create(context, "and_1", enclosing_func);
 		llvm::BasicBlock* second_block = llvm::BasicBlock::Create(context, "and_exit", enclosing_func);
@@ -181,7 +188,7 @@ llvm::Value* CodeGenVisitor::create_binary(llvm::Value* LHS, llvm::Value* RHS, i
 	}
 	case OR: {
 		// Logical or
-		auto r_type = get_type(RHS);
+		auto r_type = get_type(RHS,true);
 		llvm::Function* enclosing_func = Builder->GetInsertBlock()->getParent();
 		llvm::BasicBlock* first_block = llvm::BasicBlock::Create(context, "or_1", enclosing_func);
 		llvm::BasicBlock* second_block = llvm::BasicBlock::Create(context, "or_exit", enclosing_func);
@@ -280,18 +287,17 @@ llvm::Value* CodeGenVisitor::create_binary(llvm::Value* LHS, llvm::Value* RHS, i
 }
 
 std::pair<llvm::Value*, llvm::Value*> CodeGenVisitor::cast_values(llvm::Value* LHS, llvm::Value* RHS) {
-	llvm::Type* l_type = get_type(LHS);
-	llvm::Type* r_type = get_type(RHS);
+	llvm::Type* l_type = get_type(LHS,true);
+	llvm::Type* r_type = get_type(RHS,true);
 
-	if ((l_type->isIntegerTy() && r_type->isIntegerTy()) ||
-		(l_type->isDoubleTy() && r_type->isDoubleTy())) {
+	if (l_type == r_type) {
 		return std::make_pair(LHS, RHS);
 
 	} else if (l_type->isIntegerTy() && r_type->isDoubleTy()) {
-		auto casted_LHS = Builder->CreateSIToFP(LHS, r_type, "casttmp");
+		auto casted_LHS = Builder->CreateSIToFP(LHS, get_type(RHS), "casttmp");
 		return std::make_pair(casted_LHS, RHS);
 	} else {
-		auto casted_RHS = Builder->CreateSIToFP(RHS, l_type, "casttmp");
+		auto casted_RHS = Builder->CreateSIToFP(RHS, get_type(LHS), "casttmp");
 		return std::make_pair(LHS, casted_RHS);
 
 	}
@@ -330,18 +336,17 @@ llvm::AllocaInst* CodeGenVisitor::insert_alloca(llvm::Function* func,
 }
 
 llvm::Value* CodeGenVisitor::cast_according_to(llvm::Value* LHS, llvm::Value* RHS) {
-	llvm::Type* l_type = get_type(LHS);
-	llvm::Type* r_type = get_type(RHS);
+	llvm::Type* l_type = get_type(LHS,true);
+	llvm::Type* r_type = get_type(RHS,true);
 
-	if ((l_type->isIntegerTy() && r_type->isIntegerTy()) ||
-		(l_type->isDoubleTy() && r_type->isDoubleTy())) {
+	if ( l_type == r_type) {
 		return RHS;
 
 	} else if (l_type->isIntegerTy() && r_type->isDoubleTy()) {
-		auto casted_RHS = Builder->CreateFPToSI(RHS, l_type, "casttmp");
+		auto casted_RHS = Builder->CreateFPToSI(RHS, get_type(LHS), "casttmp");
 		return casted_RHS;
 	} else {
-		auto casted_RHS = Builder->CreateSIToFP(RHS, l_type, "casttmp");
+		auto casted_RHS = Builder->CreateSIToFP(RHS, get_type(LHS), "casttmp");
 		return casted_RHS;
 
 	}
