@@ -3,7 +3,7 @@
 #include "AST.h"
 
 
-struct CodeGenVisitor : public Visitor {
+struct CodeGen : public Visitor {
 
 	llvm::LLVMContext context;
 	std::unique_ptr<llvm::Module> curr_module;
@@ -12,7 +12,7 @@ struct CodeGenVisitor : public Visitor {
 	llvm::legacy::PassManager mpm;
 	GlobalContext* unit_context;
 
-	CodeGenVisitor(const std::string& module_name, GlobalContext* unit_context) :
+	CodeGen(const std::string& module_name, GlobalContext* unit_context) :
 		unit_context(unit_context) {
 		curr_module = std::make_unique<llvm::Module>(module_name, context);
 		Builder = std::make_unique<llvm::IRBuilder<>>(context);

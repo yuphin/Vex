@@ -18,6 +18,7 @@ add_definitions(${LLVM_DEFINITIONS})
 set(SRC_FILES 
         src/main.cpp
         src/CodeGen.cpp
+        src/ASTChecker.cpp
         src/Parser.y
         src/Scanner.l
         src/Driver.cpp)
@@ -26,6 +27,7 @@ set(HDR_FILES
         src/Ast.h
         src/Visitor.h
         src/CodeGen.h
+        src/ASTChecker.h
         src/Driver.h)
 
 # Additional cleanup

@@ -1,6 +1,6 @@
 #include "CodeGen.h"
 
-void CodeGenVisitor::print_IR() {
+void CodeGen::print_IR() {
 	//curr_module->print(llvm::errs(), nullptr);
 	//curr_module->dump();
 	// curr_module->print(llvm::errs(),nullptr);
@@ -13,7 +13,7 @@ void CodeGenVisitor::print_IR() {
 	*/
 }
 
-llvm::Value* CodeGenVisitor::symbol_lookup(const std::string& name) {
+llvm::Value* CodeGen::symbol_lookup(const std::string& name) {
 	llvm::Value* v = nullptr;
 	if (!unit_context->call_stack.empty()) {
 		v = unit_context->call_stack.top().sym_tab[name];
@@ -27,7 +27,7 @@ llvm::Value* CodeGenVisitor::symbol_lookup(const std::string& name) {
 	return v;
 }
 
-llvm::Type* CodeGenVisitor::lookup_type(const Type& type) {
+llvm::Type* CodeGen::lookup_type(const Type& type) {
 	if (!type.is_array) {
 		if (type.s_type == INT) {
 			return llvm::Type::getInt32Ty(context);
@@ -61,7 +61,7 @@ llvm::Type* CodeGenVisitor::lookup_type(const Type& type) {
 
 }
 
-llvm::Type* CodeGenVisitor::lookup_type(int type) {
+llvm::Type* CodeGen::lookup_type(int type) {
 	switch (type) {
 	case obj_type::INT: {
 		return llvm::Type::getInt32Ty(context);
@@ -76,7 +76,7 @@ llvm::Type* CodeGenVisitor::lookup_type(int type) {
 
 }
 
-llvm::Type* CodeGenVisitor::get_type(llvm::Value* V, bool underlying_type = false) {
+llvm::Type* CodeGen::get_type(llvm::Value* V, bool underlying_type = false) {
 	llvm::Type* t;
 	if (auto ai = llvm::dyn_cast<llvm::AllocaInst>(V)) {
 		t = ai->getAllocatedType();
@@ -95,7 +95,7 @@ llvm::Type* CodeGenVisitor::get_type(llvm::Value* V, bool underlying_type = fals
 }
 
 
-llvm::Value* CodeGenVisitor::create_binary(llvm::Value* LHS, llvm::Value* RHS, int op, const llvm::Twine& name = "") {
+llvm::Value* CodeGen::create_binary(llvm::Value* LHS, llvm::Value* RHS, int op, const llvm::Twine& name = "") {
 	llvm::Type* l_type = get_type(LHS, true);
 
 	switch (op) {
@@ -285,7 +285,7 @@ llvm::Value* CodeGenVisitor::create_binary(llvm::Value* LHS, llvm::Value* RHS, i
 	return nullptr;
 }
 
-std::pair<llvm::Value*, llvm::Value*> CodeGenVisitor::cast_values(llvm::Value* LHS, llvm::Value* RHS) {
+std::pair<llvm::Value*, llvm::Value*> CodeGen::cast_values(llvm::Value* LHS, llvm::Value* RHS) {
 	llvm::Type* l_type = get_type(LHS, true);
 	llvm::Type* r_type = get_type(RHS, true);
 
@@ -302,7 +302,7 @@ std::pair<llvm::Value*, llvm::Value*> CodeGenVisitor::cast_values(llvm::Value* L
 	}
 }
 
-llvm::Value* CodeGenVisitor::create_cmp(llvm::Value* LHS, llvm::Value* RHS,
+llvm::Value* CodeGen::create_cmp(llvm::Value* LHS, llvm::Value* RHS,
 	llvm::CmpInst::Predicate P, const llvm::Twine& name) {
 	llvm::Type* l_type;
 	llvm::Type* r_type;
@@ -327,14 +327,14 @@ llvm::Value* CodeGenVisitor::create_cmp(llvm::Value* LHS, llvm::Value* RHS,
 }
 
 
-llvm::AllocaInst* CodeGenVisitor::insert_alloca_to_top(llvm::Function* func,
+llvm::AllocaInst* CodeGen::insert_alloca_to_top(llvm::Function* func,
 	const std::string& var_name, llvm::Type* type) {
 
 	llvm::IRBuilder<> tmp_builder(&func->getEntryBlock(), func->getEntryBlock().begin());
 	return tmp_builder.CreateAlloca(type, 0, var_name);
 }
 
-llvm::Value* CodeGenVisitor::cast_according_to(llvm::Value* LHS, llvm::Value* RHS) {
+llvm::Value* CodeGen::cast_according_to(llvm::Value* LHS, llvm::Value* RHS) {
 	llvm::Type* l_type = get_type(LHS, true);
 	llvm::Type* r_type = get_type(RHS, true);
 
@@ -353,7 +353,7 @@ llvm::Value* CodeGenVisitor::cast_according_to(llvm::Value* LHS, llvm::Value* RH
 	return nullptr;
 }
 
-llvm::Value* CodeGenVisitor::cast_according_to_t(llvm::Type* l_type, llvm::Value* RHS) {
+llvm::Value* CodeGen::cast_according_to_t(llvm::Type* l_type, llvm::Value* RHS) {
 	llvm::Type* r_type = get_type(RHS, true);
 
 	if (l_type == r_type) {
@@ -371,15 +371,15 @@ llvm::Value* CodeGenVisitor::cast_according_to_t(llvm::Type* l_type, llvm::Value
 	return nullptr;
 }
 
-llvm::Value* CodeGenVisitor::visit(IntNumAST& el) {
+llvm::Value* CodeGen::visit(IntNumAST& el) {
 	return llvm::ConstantInt::get(context, llvm::APInt(32, el.val, true));
 }
 
-llvm::Value* CodeGenVisitor::visit(FloatingNumAST& el) {
+llvm::Value* CodeGen::visit(FloatingNumAST& el) {
 	return llvm::ConstantFP::get(context, llvm::APFloat(el.val));
 }
 
-llvm::Value* CodeGenVisitor::visit(AssignmentStatementAST& el) {
+llvm::Value* CodeGen::visit(AssignmentStatementAST& el) {
 	// TODO: proper error checks later
 
 	llvm::Value* rhs_expr = el.expr->accept(*this);
@@ -397,7 +397,7 @@ llvm::Value* CodeGenVisitor::visit(AssignmentStatementAST& el) {
 	return casted;
 }
 
-llvm::Value* CodeGenVisitor::visit(ReturnStatementAST& el) {
+llvm::Value* CodeGen::visit(ReturnStatementAST& el) {
 	auto& return_val = unit_context->call_stack.top().return_val;
 	auto& return_br = unit_context->call_stack.top().return_br;
 	auto enclosing_func = Builder->GetInsertBlock()->getParent();
@@ -431,15 +431,15 @@ llvm::Value* CodeGenVisitor::visit(ReturnStatementAST& el) {
 	return nullptr;
 }
 
-llvm::Value* CodeGenVisitor::visit(PrintStatementAST& el) {
+llvm::Value* CodeGen::visit(PrintStatementAST& el) {
 	return nullptr;
 }
 
-llvm::Value* CodeGenVisitor::visit(ReadStatementAST& el) {
+llvm::Value* CodeGen::visit(ReadStatementAST& el) {
 	return nullptr;
 }
 
-llvm::Value* CodeGenVisitor::visit(IfStatementAST& el) {
+llvm::Value* CodeGen::visit(IfStatementAST& el) {
 	unit_context->in_statement = true;
 	auto condition = el.if_expr->accept(*this);
 	llvm::BasicBlock* else_b = nullptr;
@@ -493,7 +493,7 @@ llvm::Value* CodeGenVisitor::visit(IfStatementAST& el) {
 
 }
 
-llvm::Value* CodeGenVisitor::visit(ForStatementAST& el) {
+llvm::Value* CodeGen::visit(ForStatementAST& el) {
 	unit_context->in_statement = true;
 	llvm::Function* enclosing_func = Builder->GetInsertBlock()->getParent();
 	auto assigned_value = el.assign_statement->accept(*this);
@@ -551,7 +551,7 @@ llvm::Value* CodeGenVisitor::visit(ForStatementAST& el) {
 	return nullptr;
 }
 
-llvm::Value* CodeGenVisitor::visit(WhileStatementAST& el) {
+llvm::Value* CodeGen::visit(WhileStatementAST& el) {
 	unit_context->in_statement = true;
 	llvm::Function* enclosing_func = Builder->GetInsertBlock()->getParent();
 	auto test_block = llvm::BasicBlock::Create(context, "looptest", enclosing_func);
@@ -585,11 +585,11 @@ llvm::Value* CodeGenVisitor::visit(WhileStatementAST& el) {
 	return nullptr;
 }
 
-llvm::Value* CodeGenVisitor::visit(BaseAST& el) {
+llvm::Value* CodeGen::visit(BaseAST& el) {
 	return nullptr;
 }
 
-llvm::Value* CodeGenVisitor::visit(TopAST& el) {
+llvm::Value* CodeGen::visit(TopAST& el) {
 	for (auto& decl : el.declaration_list) {
 		decl->accept(*this);
 	}
@@ -609,7 +609,7 @@ llvm::Value* CodeGenVisitor::visit(TopAST& el) {
 	return nullptr;
 }
 
-llvm::Value* CodeGenVisitor::visit(VariableDeclAST& el) {
+llvm::Value* CodeGen::visit(VariableDeclAST& el) {
 	if (unit_context->in_global_namespace) {
 		llvm::GlobalVariable* global_var = new llvm::GlobalVariable(*curr_module,
 			lookup_type(*el.var_type), false, llvm::Function::ExternalLinkage, 0, el.name, 0,
@@ -627,7 +627,7 @@ llvm::Value* CodeGenVisitor::visit(VariableDeclAST& el) {
 
 }
 
-llvm::Value* CodeGenVisitor::visit(FunctionAST& el) {
+llvm::Value* CodeGen::visit(FunctionAST& el) {
 	// First, check for an existing function from a previous 'extern' declaration.
 	auto func = curr_module->getFunction(el.prototype->name);
 
@@ -654,7 +654,7 @@ llvm::Value* CodeGenVisitor::visit(FunctionAST& el) {
 	// func->eraseFromParent();
 }
 
-llvm::Value* CodeGenVisitor::visit(FunctionDeclAST& el) {
+llvm::Value* CodeGen::visit(FunctionDeclAST& el) {
 	std::vector<llvm::Type* > args_v;
 	args_v.reserve(el.parameter_list.size());
 	for (auto& param : el.parameter_list) {
@@ -672,7 +672,7 @@ llvm::Value* CodeGenVisitor::visit(FunctionDeclAST& el) {
 	return f;
 }
 
-llvm::Value* CodeGenVisitor::visit(FunctionBodyAST& el) {
+llvm::Value* CodeGen::visit(FunctionBodyAST& el) {
 	for (auto& decl : el.declaration_list) {
 		decl->accept(*this);
 	}
@@ -680,11 +680,11 @@ llvm::Value* CodeGenVisitor::visit(FunctionBodyAST& el) {
 	return nullptr;
 }
 
-llvm::Value* CodeGenVisitor::visit(ExprAST& el) {
+llvm::Value* CodeGen::visit(ExprAST& el) {
 	return nullptr;
 }
 
-llvm::Value* CodeGenVisitor::visit(BinaryExprAST& el) {
+llvm::Value* CodeGen::visit(BinaryExprAST& el) {
 	llvm::Value* L = el.LHS->accept(*this);
 	llvm::Value* R = el.RHS->accept(*this);
 	if (el.binop != AND || el.binop != OR) {
@@ -695,7 +695,7 @@ llvm::Value* CodeGenVisitor::visit(BinaryExprAST& el) {
 	}
 }
 
-llvm::Value* CodeGenVisitor::visit(UnaryExprAST& el) {
+llvm::Value* CodeGen::visit(UnaryExprAST& el) {
 	llvm::Value* V = el.LHS->accept(*this);
 	auto V_type = get_type(V);
 	switch (el.unop) {
@@ -717,7 +717,7 @@ llvm::Value* CodeGenVisitor::visit(UnaryExprAST& el) {
 	return nullptr;
 }
 
-llvm::Value* CodeGenVisitor::visit(VariableAST& el) {
+llvm::Value* CodeGen::visit(VariableAST& el) {
 	llvm::Value* v = symbol_lookup(el.name);
 	if (!v) {
 		// To be replaced with logger
@@ -729,7 +729,7 @@ llvm::Value* CodeGenVisitor::visit(VariableAST& el) {
 
 }
 
-llvm::Value* CodeGenVisitor::visit(InvocationAST& el) {
+llvm::Value* CodeGen::visit(InvocationAST& el) {
 	llvm::Function* callee = curr_module->getFunction(el.callee);
 
 	if (!callee) {
@@ -750,12 +750,12 @@ llvm::Value* CodeGenVisitor::visit(InvocationAST& el) {
 
 }
 
-llvm::Value* CodeGenVisitor::visit(StatementAST& el) {
+llvm::Value* CodeGen::visit(StatementAST& el) {
 
 	return nullptr;
 }
 
-llvm::Value* CodeGenVisitor::visit(StatementBlockAST& el) {
+llvm::Value* CodeGen::visit(StatementBlockAST& el) {
 	llvm::Value* val = nullptr;
 	for (auto& stat : el.statement_list) {
 		val = stat->accept(*this);

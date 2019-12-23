@@ -18,7 +18,9 @@ int driver::parse(const std::string& f) {
 
 void driver::generate_code() {
     
-    CodeGenVisitor cg("main", global_context.get());
+    CodeGen cg("main", global_context.get());
+    ASTChecker ac;
+    root->accept(ac);
     root->accept(cg);
     cg.print_IR();
    // cg.print_IR();

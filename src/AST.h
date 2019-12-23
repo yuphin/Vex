@@ -5,6 +5,7 @@
 #include <iostream>
 #include "location.hh"
 #include "CodeGen.h"
+#include "ASTChecker.h"
 
 // Variable type
 enum obj_type { INT = 0, REAL = 1};
