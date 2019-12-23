@@ -96,7 +96,7 @@ llvm::Type* CodeGenVisitor::get_type(llvm::Value* V, bool underlying_type = fals
 
 
 llvm::Value* CodeGenVisitor::create_binary(llvm::Value* LHS, llvm::Value* RHS, int op, const llvm::Twine& name = "") {
-	llvm::Type* l_type = get_type(LHS,true);
+	llvm::Type* l_type = get_type(LHS, true);
 
 	switch (op) {
 	case EQ: {
@@ -149,8 +149,8 @@ llvm::Value* CodeGenVisitor::create_binary(llvm::Value* LHS, llvm::Value* RHS, i
 	}
 	case AND: {
 		// Logical and
-		auto r_type = get_type(RHS,true);
-
+		auto r_type = get_type(RHS, true);
+		auto prev_insert = Builder->GetInsertBlock();
 		llvm::Function* enclosing_func = Builder->GetInsertBlock()->getParent();
 		llvm::BasicBlock* first_block = llvm::BasicBlock::Create(context, "and_1", enclosing_func);
 		llvm::BasicBlock* second_block = llvm::BasicBlock::Create(context, "and_exit", enclosing_func);
@@ -176,11 +176,10 @@ llvm::Value* CodeGenVisitor::create_binary(llvm::Value* LHS, llvm::Value* RHS, i
 		Builder->SetInsertPoint(first_block);
 		auto not_zero_r = create_binary(RHS, zero_val_r, NEQ);
 		Builder->CreateBr(second_block);
-		enclosing_func->getBasicBlockList().push_back(second_block);
 		Builder->SetInsertPoint(second_block);
 		llvm::PHINode* pn = Builder->CreatePHI(llvm::Type::getInt1Ty(context), 2, "and_merge");
 		auto false_t = llvm::ConstantInt::getFalse(llvm::Type::getInt1Ty(context));
-		pn->addIncoming(false_t, Builder->GetInsertBlock());
+		pn->addIncoming(false_t, prev_insert);
 		pn->addIncoming(not_zero_r, first_block);
 		return pn;
 
@@ -188,7 +187,8 @@ llvm::Value* CodeGenVisitor::create_binary(llvm::Value* LHS, llvm::Value* RHS, i
 	}
 	case OR: {
 		// Logical or
-		auto r_type = get_type(RHS,true);
+		auto r_type = get_type(RHS, true);
+		auto prev_insert = Builder->GetInsertBlock();
 		llvm::Function* enclosing_func = Builder->GetInsertBlock()->getParent();
 		llvm::BasicBlock* first_block = llvm::BasicBlock::Create(context, "or_1", enclosing_func);
 		llvm::BasicBlock* second_block = llvm::BasicBlock::Create(context, "or_exit", enclosing_func);
@@ -214,11 +214,10 @@ llvm::Value* CodeGenVisitor::create_binary(llvm::Value* LHS, llvm::Value* RHS, i
 		Builder->SetInsertPoint(first_block);
 		auto zero_r = create_binary(RHS, zero_val_r, NEQ);
 		Builder->CreateBr(second_block);
-		enclosing_func->getBasicBlockList().push_back(second_block);
 		Builder->SetInsertPoint(second_block);
 		llvm::PHINode* pn = Builder->CreatePHI(llvm::Type::getInt1Ty(context), 2, "and_e");
 		auto true_t = llvm::ConstantInt::getTrue(llvm::Type::getInt1Ty(context));
-		pn->addIncoming(true_t, Builder->GetInsertBlock());
+		pn->addIncoming(true_t, prev_insert);
 		pn->addIncoming(zero_r, first_block);
 		return pn;
 
@@ -287,8 +286,8 @@ llvm::Value* CodeGenVisitor::create_binary(llvm::Value* LHS, llvm::Value* RHS, i
 }
 
 std::pair<llvm::Value*, llvm::Value*> CodeGenVisitor::cast_values(llvm::Value* LHS, llvm::Value* RHS) {
-	llvm::Type* l_type = get_type(LHS,true);
-	llvm::Type* r_type = get_type(RHS,true);
+	llvm::Type* l_type = get_type(LHS, true);
+	llvm::Type* r_type = get_type(RHS, true);
 
 	if (l_type == r_type) {
 		return std::make_pair(LHS, RHS);
@@ -328,7 +327,7 @@ llvm::Value* CodeGenVisitor::create_cmp(llvm::Value* LHS, llvm::Value* RHS,
 }
 
 
-llvm::AllocaInst* CodeGenVisitor::insert_alloca(llvm::Function* func,
+llvm::AllocaInst* CodeGenVisitor::insert_alloca_to_top(llvm::Function* func,
 	const std::string& var_name, llvm::Type* type) {
 
 	llvm::IRBuilder<> tmp_builder(&func->getEntryBlock(), func->getEntryBlock().begin());
@@ -336,10 +335,10 @@ llvm::AllocaInst* CodeGenVisitor::insert_alloca(llvm::Function* func,
 }
 
 llvm::Value* CodeGenVisitor::cast_according_to(llvm::Value* LHS, llvm::Value* RHS) {
-	llvm::Type* l_type = get_type(LHS,true);
-	llvm::Type* r_type = get_type(RHS,true);
+	llvm::Type* l_type = get_type(LHS, true);
+	llvm::Type* r_type = get_type(RHS, true);
 
-	if ( l_type == r_type) {
+	if (l_type == r_type) {
 		return RHS;
 
 	} else if (l_type->isIntegerTy() && r_type->isDoubleTy()) {
@@ -347,6 +346,24 @@ llvm::Value* CodeGenVisitor::cast_according_to(llvm::Value* LHS, llvm::Value* RH
 		return casted_RHS;
 	} else {
 		auto casted_RHS = Builder->CreateSIToFP(RHS, get_type(LHS), "casttmp");
+		return casted_RHS;
+
+	}
+
+	return nullptr;
+}
+
+llvm::Value* CodeGenVisitor::cast_according_to_t(llvm::Type* l_type, llvm::Value* RHS) {
+	llvm::Type* r_type = get_type(RHS, true);
+
+	if (l_type == r_type) {
+		return RHS;
+
+	} else if (l_type->isIntegerTy() && r_type->isDoubleTy()) {
+		auto casted_RHS = Builder->CreateFPToSI(RHS, l_type, "casttmp");
+		return casted_RHS;
+	} else {
+		auto casted_RHS = Builder->CreateSIToFP(RHS, l_type, "casttmp");
 		return casted_RHS;
 
 	}
@@ -381,8 +398,36 @@ llvm::Value* CodeGenVisitor::visit(AssignmentStatementAST& el) {
 }
 
 llvm::Value* CodeGenVisitor::visit(ReturnStatementAST& el) {
-	auto ret_val = el.expr->accept(*this);
-	Builder->CreateRet(ret_val);
+	auto& return_val = unit_context->call_stack.top().return_val;
+	auto& return_br = unit_context->call_stack.top().return_br;
+	auto enclosing_func = Builder->GetInsertBlock()->getParent();
+	if (unit_context->in_statement) {
+		auto ret_expr = el.expr->accept(*this);
+		if (!return_val) {
+			return_br = llvm::BasicBlock::Create(context, "return_label");
+			return_val = insert_alloca_to_top(
+				enclosing_func,
+				"retval",
+				enclosing_func->getReturnType()
+			);
+		}
+		if (ret_expr->getType() != enclosing_func->getReturnType()) {
+			ret_expr = cast_according_to_t(enclosing_func->getReturnType(), ret_expr);
+		}
+		Builder->CreateStore(ret_expr, return_val);
+		Builder->CreateBr(return_br);
+		return return_br;
+
+	} else if (!return_val) {
+		auto ret_val = el.expr->accept(*this);
+		Builder->CreateRet(ret_val);
+	} else {
+		enclosing_func->getBasicBlockList().push_back(return_br);
+		Builder->SetInsertPoint(return_br);
+		auto val = Builder->CreateLoad(enclosing_func->getReturnType(), return_val, "retval");
+		Builder->CreateRet(val);
+
+	}
 	return nullptr;
 }
 
@@ -395,53 +440,67 @@ llvm::Value* CodeGenVisitor::visit(ReadStatementAST& el) {
 }
 
 llvm::Value* CodeGenVisitor::visit(IfStatementAST& el) {
+	unit_context->in_statement = true;
 	auto condition = el.if_expr->accept(*this);
-	llvm::BasicBlock* else_b;
+	llvm::BasicBlock* else_b = nullptr;
 	if (!condition) {
 		return nullptr;
 	}
-
 	auto has_else = (el.else_blk != nullptr);
 	auto condition_type = get_type(condition);
 	llvm::Value* zero_val;
-	if (condition_type->isIntegerTy()) {
-		zero_val = llvm::ConstantInt::getFalse(llvm::Type::getInt1Ty(context));
-	} else {
+	if (condition_type->isIntegerTy() && condition_type->getIntegerBitWidth() == 32) {
+		zero_val = llvm::ConstantInt::get(context, llvm::APInt(32, 0, true));
+		condition = create_binary(condition, zero_val, NEQ);
+	} else if (condition_type->isDoubleTy()) {
 		zero_val = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
+		condition = create_binary(condition, zero_val, NEQ);
 	}
-	condition = create_binary(condition, zero_val, NEQ, "if_expr");
 	llvm::Function* enclosing_func = Builder->GetInsertBlock()->getParent();
 	llvm::BasicBlock* then_b = llvm::BasicBlock::Create(context, "then", enclosing_func);
-	llvm::BasicBlock* if_cont = llvm::BasicBlock::Create(context, "ifcont");
-	else_b = llvm::BasicBlock::Create(context, "else");
-
-	Builder->CreateCondBr(condition, then_b, else_b);
-	Builder->SetInsertPoint(then_b);
-	el.then_blk->accept(*this);
-	Builder->CreateBr(if_cont);
-	// Update then block since it might change the block contents
-
-	enclosing_func->getBasicBlockList().push_back(else_b);
-	Builder->SetInsertPoint(else_b);
+	llvm::BasicBlock* if_cont = llvm::BasicBlock::Create(context, "if_cont");
 	if (has_else) {
-		el.else_blk->accept(*this);
+		else_b = llvm::BasicBlock::Create(context, "else");
+		Builder->CreateCondBr(condition, then_b, else_b);
+	} else {
+		Builder->CreateCondBr(condition, then_b, if_cont);
 	}
-	Builder->CreateBr(if_cont);
+	Builder->SetInsertPoint(then_b);
+	auto return_label = el.then_blk->accept(*this);
+	if (!return_label) {
+		Builder->CreateBr(if_cont);
+	}
+
+
+	if (has_else) {
+		enclosing_func->getBasicBlockList().push_back(else_b);
+		Builder->SetInsertPoint(else_b);
+		return_label = el.else_blk->accept(*this);
+		if (!return_label) {
+			Builder->CreateBr(if_cont);
+		}
+	}
 
 	// if_cont part
-	enclosing_func->getBasicBlockList().push_back(if_cont);
-	Builder->SetInsertPoint(if_cont);
+	//auto lel = llvm::predecessors(if_cont).begin(;
+	if (llvm::predecessors(if_cont).begin() != llvm::predecessors(if_cont).end()) {
+		enclosing_func->getBasicBlockList().push_back(if_cont);
+		Builder->SetInsertPoint(if_cont);
+	}
 
+	unit_context->in_statement = false;
 	return nullptr;
+
 }
 
 llvm::Value* CodeGenVisitor::visit(ForStatementAST& el) {
+	unit_context->in_statement = true;
 	llvm::Function* enclosing_func = Builder->GetInsertBlock()->getParent();
 	auto assigned_value = el.assign_statement->accept(*this);
 	auto test_block = llvm::BasicBlock::Create(context, "looptest", enclosing_func);
 	auto loop_block = llvm::BasicBlock::Create(context, "loop", enclosing_func);
 	auto step_block = llvm::BasicBlock::Create(context, "loopstep", enclosing_func);
-	auto cont_block = llvm::BasicBlock::Create(context, "loopcont", enclosing_func);
+	auto cont_block = llvm::BasicBlock::Create(context, "loopcont",enclosing_func);
 	// Jump to loop block for testing
 	Builder->CreateBr(test_block);
 	Builder->SetInsertPoint(test_block);
@@ -455,12 +514,16 @@ llvm::Value* CodeGenVisitor::visit(ForStatementAST& el) {
 
 	// enclosing_func->getBasicBlockList().push_back(loop_block);
 	Builder->SetInsertPoint(loop_block);
-	el.statement_block->accept(*this);
-
+	auto return_label = el.statement_block->accept(*this);
 	// Go to the step part
-	Builder->CreateBr(step_block);
 
 	Builder->SetInsertPoint(step_block);
+	if (!return_label) {
+		Builder->CreateBr(step_block);
+
+	}
+
+
 	// Potentially cast Lvalue or ByExpr to double 
 	if (el.by_expr) {
 		casted = cast_values(assigned_value, el.by_expr->accept(*this));
@@ -483,10 +546,13 @@ llvm::Value* CodeGenVisitor::visit(ForStatementAST& el) {
 	Builder->CreateBr(test_block);
 	// End of the loop
 	Builder->SetInsertPoint(cont_block);
+
+	unit_context->in_statement = false;
 	return nullptr;
 }
 
 llvm::Value* CodeGenVisitor::visit(WhileStatementAST& el) {
+	unit_context->in_statement = true;
 	llvm::Function* enclosing_func = Builder->GetInsertBlock()->getParent();
 	auto test_block = llvm::BasicBlock::Create(context, "looptest", enclosing_func);
 	auto loop_block = llvm::BasicBlock::Create(context, "loop", enclosing_func);
@@ -508,13 +574,14 @@ llvm::Value* CodeGenVisitor::visit(WhileStatementAST& el) {
 
 	// Loop block
 	Builder->SetInsertPoint(loop_block);
-	el.statement_block->accept(*this);
-
-	// Go to the beginning of the loop for testing
-	Builder->CreateBr(test_block);
-
+	auto return_label = el.statement_block->accept(*this);
+	if (!return_label) {
+		// Go to the beginning of the loop for testing
+		Builder->CreateBr(test_block);
+	}
 	// After loop
 	Builder->SetInsertPoint(cont_block);
+	unit_context->in_statement = false;
 	return nullptr;
 }
 
@@ -535,6 +602,10 @@ llvm::Value* CodeGenVisitor::visit(TopAST& el) {
 		unit_context->call_stack.pop();
 	}
 
+
+	mpm.run(*curr_module);
+
+
 	return nullptr;
 }
 
@@ -547,7 +618,7 @@ llvm::Value* CodeGenVisitor::visit(VariableDeclAST& el) {
 	} else {
 		// We are in the function context
 		auto enclosing_func = Builder->GetInsertBlock()->getParent();
-		auto val = insert_alloca(enclosing_func, el.name,
+		auto val = insert_alloca_to_top(enclosing_func, el.name,
 			lookup_type(*el.var_type));
 		unit_context->call_stack.top().sym_tab[el.name] = val;
 	}
@@ -571,12 +642,13 @@ llvm::Value* CodeGenVisitor::visit(FunctionAST& el) {
 
 	// Record the function arguments in the symbol map.
 	for (auto& arg : func->args()) {
-		auto v_alloca = insert_alloca(func, arg.getName(), arg.getType());
+		auto v_alloca = insert_alloca_to_top(func, arg.getName(), arg.getType());
 		Builder->CreateStore(&arg, v_alloca);
 		unit_context->call_stack.top().sym_tab[arg.getName()] = v_alloca;
 	}
 	el.body->accept(*this);
 	llvm::verifyFunction(*func);
+	fpm->run(*func);
 	return func;
 	// Error reading body, remove function.
 	// func->eraseFromParent();
@@ -684,9 +756,10 @@ llvm::Value* CodeGenVisitor::visit(StatementAST& el) {
 }
 
 llvm::Value* CodeGenVisitor::visit(StatementBlockAST& el) {
+	llvm::Value* val;
 	for (auto& stat : el.statement_list) {
-		stat->accept(*this);
+		val = stat->accept(*this);
 	}
 
-	return nullptr;
+	return val;
 }

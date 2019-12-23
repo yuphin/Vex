@@ -42,7 +42,7 @@ add_flex_bison_dependency(Scanner Parser)
 # Add source to this project's executable.
 add_executable (VexLLVM ${SRC_FILES} ${HDR_FILES} ${FLEX_Scanner_OUTPUTS} ${BISON_Parser_OUTPUTS})
 
-llvm_map_components_to_libnames(llvm_libs support core irreader)
+llvm_map_components_to_libnames(llvm_libs support core irreader all)
 # Link against LLVM libraries
 target_link_libraries(VexLLVM ${llvm_libs})
 
