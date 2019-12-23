@@ -756,7 +756,7 @@ llvm::Value* CodeGenVisitor::visit(StatementAST& el) {
 }
 
 llvm::Value* CodeGenVisitor::visit(StatementBlockAST& el) {
-	llvm::Value* val;
+	llvm::Value* val = nullptr;
 	for (auto& stat : el.statement_list) {
 		val = stat->accept(*this);
 	}
