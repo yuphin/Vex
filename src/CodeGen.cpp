@@ -421,12 +421,6 @@ llvm::Value* CodeGen::visit(ReturnStatementAST& el) {
 	} else if (!return_val) {
 		auto ret_val = el.expr->accept(*this);
 		Builder->CreateRet(ret_val);
-	} else {
-		enclosing_func->getBasicBlockList().push_back(return_br);
-		Builder->SetInsertPoint(return_br);
-		auto val = Builder->CreateLoad(enclosing_func->getReturnType(), return_val, "retval");
-		Builder->CreateRet(val);
-
 	}
 	return nullptr;
 }
@@ -467,7 +461,7 @@ llvm::Value* CodeGen::visit(IfStatementAST& el) {
 	}
 	Builder->SetInsertPoint(then_b);
 	auto return_label = el.then_blk->accept(*this);
-	if (!return_label) {
+	if (!return_label || !llvm::dyn_cast<llvm::BasicBlock>(return_label)) {
 		Builder->CreateBr(if_cont);
 	}
 
@@ -476,19 +470,21 @@ llvm::Value* CodeGen::visit(IfStatementAST& el) {
 		enclosing_func->getBasicBlockList().push_back(else_b);
 		Builder->SetInsertPoint(else_b);
 		return_label = el.else_blk->accept(*this);
-		if (!return_label) {
+		if (!return_label || !llvm::dyn_cast<llvm::BasicBlock>(return_label)) {
 			Builder->CreateBr(if_cont);
 		}
 	}
 
 	// if_cont part
-	//auto lel = llvm::predecessors(if_cont).begin(;
 	if (llvm::predecessors(if_cont).begin() != llvm::predecessors(if_cont).end()) {
 		enclosing_func->getBasicBlockList().push_back(if_cont);
 		Builder->SetInsertPoint(if_cont);
 	}
 
 	unit_context->in_statement = false;
+	if (return_label && llvm::dyn_cast<llvm::BasicBlock>(return_label)) {
+		return return_label;
+	}
 	return nullptr;
 
 }
@@ -500,7 +496,7 @@ llvm::Value* CodeGen::visit(ForStatementAST& el) {
 	auto test_block = llvm::BasicBlock::Create(context, "looptest", enclosing_func);
 	auto loop_block = llvm::BasicBlock::Create(context, "loop", enclosing_func);
 	auto step_block = llvm::BasicBlock::Create(context, "loopstep", enclosing_func);
-	auto cont_block = llvm::BasicBlock::Create(context, "loopcont",enclosing_func);
+	auto cont_block = llvm::BasicBlock::Create(context, "loopcont", enclosing_func);
 	// Jump to loop block for testing
 	Builder->CreateBr(test_block);
 	Builder->SetInsertPoint(test_block);
@@ -603,6 +599,8 @@ llvm::Value* CodeGen::visit(TopAST& el) {
 	}
 
 
+
+
 	mpm.run(*curr_module);
 
 
@@ -647,6 +645,23 @@ llvm::Value* CodeGen::visit(FunctionAST& el) {
 		unit_context->call_stack.top().sym_tab[arg.getName()] = v_alloca;
 	}
 	el.body->accept(*this);
+	auto& return_val = unit_context->call_stack.top().return_val;
+	if (return_val) {
+		auto& return_br = unit_context->call_stack.top().return_br;
+		auto last_stmt = el.body->statement_block->statement_list.back().get();
+		auto enclosing_func = Builder->GetInsertBlock()->getParent();
+		if (auto return_stmt = dynamic_cast<ReturnStatementAST*>(last_stmt)) {
+			auto ret_expr = return_stmt->expr->accept(*this);
+			Builder->CreateStore(ret_expr, return_val);
+			Builder->CreateBr(return_br);
+		}
+		enclosing_func->getBasicBlockList().push_back(return_br);
+		Builder->SetInsertPoint(unit_context->call_stack.top().return_br);
+		auto val = Builder->CreateLoad(Builder->GetInsertBlock()->getParent()->getReturnType()
+			, return_val, "retval");
+		Builder->CreateRet(val);
+
+	}
 	llvm::verifyFunction(*func);
 	fpm->run(*func);
 	return func;

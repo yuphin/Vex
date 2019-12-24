@@ -23,5 +23,4 @@ void driver::generate_code() {
     root->accept(ac);
     root->accept(cg);
     cg.print_IR();
-   // cg.print_IR();
 }

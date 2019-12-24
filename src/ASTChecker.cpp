@@ -79,19 +79,44 @@ llvm::Value* ASTChecker::visit(ReadStatementAST& el) {
 }
 
 llvm::Value* ASTChecker::visit(IfStatementAST& el) {
-	
+	el.if_expr->accept(*this);
+
+	auto then_has_return = false;
+	for (auto& expr : el.then_blk->statement_list) {
+		if (dynamic_cast<ReturnStatementAST*>(expr.get())) {
+			then_has_return = true;
+			break;
+		}
+	}
+	el.then_blk->accept(*this);
+	if (el.else_blk) {
+		el.else_blk->accept(*this);
+		for (auto& expr : el.else_blk->statement_list) {
+			if (then_has_return && dynamic_cast<ReturnStatementAST*>(expr.get())) {
+				this->ret_in_statement = true;
+			}
+		}
+	}
 	return nullptr;
 }
 
 llvm::Value* ASTChecker::visit(ForStatementAST& el) {
+	el.assign_statement->accept(*this);
+	el.to_expr->accept(*this); el.by_expr->accept(*this);
+	el.statement_block->accept(*this);
 	return nullptr;
 }
 
 llvm::Value* ASTChecker::visit(WhileStatementAST& el) {
+	el.while_expr->accept(*this);
+	el.statement_block->accept(*this);
 	return nullptr;
 }
 
 llvm::Value* ASTChecker::visit(InvocationAST& el) {
+	for (auto& arg : el.args) {
+		arg->accept(*this);
+	}
 	return nullptr;
 }
 
@@ -103,15 +128,19 @@ llvm::Value* ASTChecker::visit(StatementBlockAST& el) {
 	auto has_ret = false;
 	auto it = el.statement_list.begin();
 	while (it != el.statement_list.end()) {
-		if (has_ret) {
+		if (has_ret || ret_in_statement) {
 			it = el.statement_list.erase(it);
+			continue;
 		} else {
-			it++;
+			it->get()->accept(*this);
 		}
 		if (!has_ret && dynamic_cast<ReturnStatementAST*>(it->get())) {
+			it->get()->accept(*this);
 			has_ret = true;
 		}
+		it++;
 
 	}
+	this->ret_in_statement = false;
 	return nullptr;
 }

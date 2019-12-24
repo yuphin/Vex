@@ -27,5 +27,8 @@ struct ASTChecker : public Visitor {
 	virtual llvm::Value* visit(StatementAST& el) override;
 	virtual llvm::Value* visit(StatementBlockAST& el) override;
 
+	private:
+	bool ret_in_statement = false;
+
 
 };
