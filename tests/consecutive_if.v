@@ -9,7 +9,12 @@ int func main(main_arg:real)
     if var1 > 0 then
         return 1;
     else 
-        var2 := var1* 1413;
+        if var2 then
+            var2 := var1* 1413;
+            return var2;
+        else 
+            return var2;
+        endif;
     endif;
  
     for var3 := 1 to 1000 by 1

@@ -102,7 +102,9 @@ llvm::Value* ASTChecker::visit(IfStatementAST& el) {
 
 llvm::Value* ASTChecker::visit(ForStatementAST& el) {
 	el.assign_statement->accept(*this);
-	el.to_expr->accept(*this); el.by_expr->accept(*this);
+	el.to_expr->accept(*this); 
+	if(el.by_expr)
+		el.by_expr->accept(*this);
 	el.statement_block->accept(*this);
 	return nullptr;
 }
