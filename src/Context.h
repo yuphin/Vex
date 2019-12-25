@@ -1,6 +1,7 @@
 #pragma once
 #include <unordered_map>
 #include <stack>
+#include <sstream> 
 #include <memory>
 #include <llvm/IR/Value.h>
 #include <llvm/IR/Function.h>

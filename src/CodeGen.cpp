@@ -1,10 +1,28 @@
 #include "CodeGen.h"
 
+CodeGen::CodeGen(const std::string& module_name, GlobalContext* unit_context) :
+	unit_context(unit_context) {
+	curr_module = std::make_unique<llvm::Module>(module_name, context);
+	Builder = std::make_unique<llvm::IRBuilder<>>(context);
+	fpm = std::make_unique<llvm::legacy::FunctionPassManager>(curr_module.get());
+	llvm::PassManagerBuilder pmbuilder;
+	pmbuilder.OptLevel = 0;
+	pmbuilder.populateFunctionPassManager(*fpm);
+	pmbuilder.populateModulePassManager(mpm);
+	print = curr_module->getOrInsertFunction("printf",
+		llvm::FunctionType::get(llvm::IntegerType::getInt32Ty(context),
+			llvm::PointerType::get(llvm::Type::getInt8Ty(context), 0), true));
+	read = curr_module->getOrInsertFunction("scanf",
+		llvm::FunctionType::get(llvm::IntegerType::getInt32Ty(context),
+			llvm::PointerType::get(llvm::Type::getInt8Ty(context), 0), true));
+}
+
+
 void CodeGen::print_IR() {
-	//curr_module->print(llvm::errs(), nullptr);
+	curr_module->print(llvm::errs(), nullptr);
 	//curr_module->dump();
 	// curr_module->print(llvm::errs(),nullptr);
-	curr_module->dump();
+	//	curr_module->dump();
 	/*
 	std::string ir_str;
 	llvm::raw_string_ostream o(ir_str);
@@ -371,6 +389,16 @@ llvm::Value* CodeGen::cast_according_to_t(llvm::Type* l_type, llvm::Value* RHS) 
 	return nullptr;
 }
 
+llvm::Constant* CodeGen::prepare_io(const std::string& str) {
+	auto llvm_str = llvm::ConstantDataArray::getString(context, str);
+	auto io_str = new llvm::GlobalVariable(*curr_module, llvm_str->getType(), true,
+		llvm::GlobalValue::InternalLinkage, llvm_str);
+
+	llvm::Constant* llvm_null = llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(context));
+	llvm::Constant *zeros[] = { llvm_null,llvm_null };
+	return llvm::ConstantExpr::getGetElementPtr(llvm_str->getType(), io_str, zeros, true);
+}
+
 llvm::Value* CodeGen::visit(IntNumAST& el) {
 	return llvm::ConstantInt::get(context, llvm::APInt(32, el.val, true));
 }
@@ -426,10 +454,39 @@ llvm::Value* CodeGen::visit(ReturnStatementAST& el) {
 }
 
 llvm::Value* CodeGen::visit(PrintStatementAST& el) {
+	std::stringstream ss;
+	std::vector<llvm::Value*> vals;
+	for (int i = 0; i < el.print_exprs.size(); i++) {
+		auto expr = el.print_exprs[i]->accept(*this);
+		if (expr->getType()->isDoubleTy()) {
+			ss << "%d";
+		} else {
+			ss << "%lf";
+		}
+		vals.push_back(expr);
+	}
+	ss << "\n";
+	auto print_prep = prepare_io(ss.str());
+	vals.insert(vals.begin(), print_prep);
+	Builder->CreateCall(print, vals);
 	return nullptr;
 }
 
 llvm::Value* CodeGen::visit(ReadStatementAST& el) {
+	std::stringstream ss;
+	std::vector<llvm::Value*> vals;
+	for (int i = 0; i < el.read_exprs.size(); i++) {
+		auto expr = el.read_exprs[i]->accept(*this);
+		if (expr->getType()->isDoubleTy()) {
+			ss << "%d";
+		} else {
+			ss << "%lf";
+		}
+		vals.push_back(llvm::cast<llvm::LoadInst>(expr)->getPointerOperand());
+	}
+	auto print_prep = prepare_io(ss.str());
+	vals.insert(vals.begin(), print_prep);
+	Builder->CreateCall(print, vals);
 	return nullptr;
 }
 
@@ -490,6 +547,7 @@ llvm::Value* CodeGen::visit(IfStatementAST& el) {
 }
 
 llvm::Value* CodeGen::visit(ForStatementAST& el) {
+	// TODO: FIX LOOPS JUST LIKE WE DID IN IFS AND ELSES
 	unit_context->in_statement = true;
 	llvm::Function* enclosing_func = Builder->GetInsertBlock()->getParent();
 	auto assigned_value = el.assign_statement->accept(*this);
@@ -513,13 +571,13 @@ llvm::Value* CodeGen::visit(ForStatementAST& el) {
 	auto return_label = el.statement_block->accept(*this);
 	// Go to the step part
 
-	Builder->SetInsertPoint(step_block);
 	if (!return_label) {
 		Builder->CreateBr(step_block);
 
 	}
 
 
+	Builder->SetInsertPoint(step_block);
 	// Potentially cast Lvalue or ByExpr to double 
 	if (el.by_expr) {
 		casted = cast_values(assigned_value, el.by_expr->accept(*this));
@@ -597,12 +655,7 @@ llvm::Value* CodeGen::visit(TopAST& el) {
 		// Exit function context
 		unit_context->call_stack.pop();
 	}
-
-
-
-
 	mpm.run(*curr_module);
-
 
 	return nullptr;
 }
@@ -741,7 +794,6 @@ llvm::Value* CodeGen::visit(VariableAST& el) {
 	}
 	auto type = get_type(v);
 	return Builder->CreateLoad(type, v, el.name);;
-
 }
 
 llvm::Value* CodeGen::visit(InvocationAST& el) {
@@ -766,7 +818,6 @@ llvm::Value* CodeGen::visit(InvocationAST& el) {
 }
 
 llvm::Value* CodeGen::visit(StatementAST& el) {
-
 	return nullptr;
 }
 
@@ -775,6 +826,5 @@ llvm::Value* CodeGen::visit(StatementBlockAST& el) {
 	for (auto& stat : el.statement_list) {
 		val = stat->accept(*this);
 	}
-
 	return val;
 }
