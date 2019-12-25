@@ -109,6 +109,7 @@ llvm::Type* CodeGen::get_type(llvm::Value* V, bool underlying_type = false) {
 			t = ai->getElementType();
 		}
 	}
+
 	return t;
 }
 
@@ -175,16 +176,20 @@ llvm::Value* CodeGen::create_binary(llvm::Value* LHS, llvm::Value* RHS, int op, 
 
 		llvm::Value* zero_val_l;
 		llvm::Value* zero_val_r;
-		if (l_type->isIntegerTy()) {
+		if (l_type->isIntegerTy() && l_type->getIntegerBitWidth() == 32) {
 			zero_val_l = llvm::ConstantInt::get(context, llvm::APInt(32, 0, true));
-		} else {
+		} else if (l_type->isDoubleTy()) {
 			zero_val_l = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
+		} else {
+			zero_val_l = LHS;
 		}
 
-		if (r_type->isIntegerTy()) {
+		if (r_type->isIntegerTy() && r_type->getIntegerBitWidth() == 32) {
 			zero_val_r = llvm::ConstantInt::get(context, llvm::APInt(32, 0, true));
-		} else {
+		} else if (r_type->isDoubleTy()) {
 			zero_val_r = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
+		} else {
+			zero_val_r = RHS;
 		}
 
 		// Check if the first expr is not equal to 0 
@@ -213,16 +218,20 @@ llvm::Value* CodeGen::create_binary(llvm::Value* LHS, llvm::Value* RHS, int op, 
 
 		llvm::Value* zero_val_l;
 		llvm::Value* zero_val_r;
-		if (l_type->isIntegerTy()) {
+		if (l_type->isIntegerTy() && l_type->getIntegerBitWidth() == 32) {
 			zero_val_l = llvm::ConstantInt::get(context, llvm::APInt(32, 0, true));
-		} else {
+		} else if (l_type->isDoubleTy()) {
 			zero_val_l = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
+		} else {
+			zero_val_l = LHS;
 		}
 
-		if (r_type->isIntegerTy()) {
+		if (r_type->isIntegerTy() && r_type->getIntegerBitWidth() == 32) {
 			zero_val_r = llvm::ConstantInt::get(context, llvm::APInt(32, 0, true));
-		} else {
+		} else if (r_type->isDoubleTy()) {
 			zero_val_r = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
+		} else {
+			zero_val_r = RHS;
 		}
 
 		// Check if the first expr is not equal to 0 
@@ -395,12 +404,22 @@ llvm::Constant* CodeGen::prepare_io(const std::string& str) {
 		llvm::GlobalValue::InternalLinkage, llvm_str);
 
 	llvm::Constant* llvm_null = llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(context));
-	llvm::Constant *zeros[] = { llvm_null,llvm_null };
+	llvm::Constant* zeros[] = { llvm_null,llvm_null };
 	return llvm::ConstantExpr::getGetElementPtr(llvm_str->getType(), io_str, zeros, true);
 }
 
+llvm::Value* CodeGen::create_int(const int& val, bool should_decrement = false) {
+	if (should_decrement) {
+		return llvm::ConstantInt::get(context, llvm::APInt(32, val - 1, true));
+	} else {
+		return llvm::ConstantInt::get(context, llvm::APInt(32, val, true));
+
+	}
+	return nullptr;
+}
+
 llvm::Value* CodeGen::visit(IntNumAST& el) {
-	return llvm::ConstantInt::get(context, llvm::APInt(32, el.val, true));
+	return create_int(el.val);
 }
 
 llvm::Value* CodeGen::visit(FloatingNumAST& el) {
@@ -464,6 +483,7 @@ llvm::Value* CodeGen::visit(PrintStatementAST& el) {
 			ss << "%lf";
 		}
 		vals.push_back(expr);
+
 	}
 	ss << "\n";
 	auto print_prep = prepare_io(ss.str());
@@ -476,17 +496,27 @@ llvm::Value* CodeGen::visit(ReadStatementAST& el) {
 	std::stringstream ss;
 	std::vector<llvm::Value*> vals;
 	for (int i = 0; i < el.read_exprs.size(); i++) {
-		auto expr = el.read_exprs[i]->accept(*this);
-		if (expr->getType()->isDoubleTy()) {
+		auto variable_expr = llvm::cast<VariableAST>(el.read_exprs[i].get());
+		llvm::Value* expr;
+		expr = symbol_lookup(variable_expr->name);
+		if (variable_expr->indexExpr) {
+			llvm::Value* index_vals[] = {
+		llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(context)),
+		create_int(dynamic_cast<IntNumAST*>(variable_expr->indexExpr.get())->val, true) };
+			expr = Builder->CreateGEP(expr, index_vals, "vector_cell");
+
+		}
+		if (get_type(expr)->isDoubleTy()) {
 			ss << "%d";
 		} else {
 			ss << "%lf";
 		}
-		vals.push_back(llvm::cast<llvm::LoadInst>(expr)->getPointerOperand());
+		vals.push_back(expr);
+
 	}
 	auto print_prep = prepare_io(ss.str());
 	vals.insert(vals.begin(), print_prep);
-	Builder->CreateCall(print, vals);
+	Builder->CreateCall(read, vals);
 	return nullptr;
 }
 
@@ -755,7 +785,7 @@ llvm::Value* CodeGen::visit(ExprAST& el) {
 llvm::Value* CodeGen::visit(BinaryExprAST& el) {
 	llvm::Value* L = el.LHS->accept(*this);
 	llvm::Value* R = el.RHS->accept(*this);
-	if (el.binop != AND || el.binop != OR) {
+	if (el.binop != AND && el.binop != OR) {
 		auto casted = cast_values(L, R);
 		return create_binary(casted.first, casted.second, el.binop);
 	} else {
@@ -792,8 +822,17 @@ llvm::Value* CodeGen::visit(VariableAST& el) {
 		return nullptr;
 		std::cerr << "Unknown variable!\n";
 	}
+	if (el.indexExpr) {
+		llvm::Value* index_vals[] = {
+			llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(context)),
+			create_int(dynamic_cast<IntNumAST*>(el.indexExpr.get())->val, true) };
+		v = Builder->CreateGEP(v, index_vals, "vector_cell");
+	}
 	auto type = get_type(v);
-	return Builder->CreateLoad(type, v, el.name);;
+	if (auto p_type = llvm::dyn_cast<llvm::PointerType>(type)) {
+		return Builder->CreateLoad(p_type->getElementType(), v, el.name);
+	}
+	return Builder->CreateLoad(type, v, el.name);
 }
 
 llvm::Value* CodeGen::visit(InvocationAST& el) {

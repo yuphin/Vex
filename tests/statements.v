@@ -8,15 +8,15 @@ int func bar()
 endfunc
 int func foo()
     var var3: real;
-    var new_var3 : int[9];
+    var new_var3 : real[9];
 
     % if statement
 
-    if var3 = new_var and bar() then
+    read next_var[1],var3;
+    if next_var[1] or bar() then
         return 2;
     else
-        read next_var,var3;
-        print next_var;
+        print next_var[1];
         return 0;
     endif;
 

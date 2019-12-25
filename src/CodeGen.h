@@ -50,6 +50,7 @@ struct CodeGen : public Visitor {
 	llvm::Value* cast_according_to(llvm::Value* LHS, llvm::Value* RHS);
 	llvm::Value* cast_according_to_t(llvm::Type* l_type, llvm::Value* RHS);
 	llvm::Constant* prepare_io(const std::string& str);
+	llvm::Value* create_int(const int& val, bool should_decrement);
 
 };
 
