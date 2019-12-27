@@ -30,7 +30,9 @@ namespace Vex {
 		private:
 		bool ret_in_statement = false;
 		bool err = false;
+		bool in_func = false;
 		std::unordered_map<std::string, Type*> sym_tab;
+		std::unordered_map<std::string, Type*> global_tab;
 		std::unordered_map<std::string, obj_type> func_tab;
 
 

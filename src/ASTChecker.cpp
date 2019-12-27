@@ -12,22 +12,41 @@ namespace Vex {
 			fl->accept(*this);
 
 		}
+		VEX_ASSERT(func_tab.count("main") == 1, "Function \"main\" doesn't exist!");
 		return nullptr;
 	}
 
 	llvm::Value* ASTChecker::visit(VariableDeclAST& el) {
-		sym_tab[el.name] = el.var_type.get();
+		if ((!in_func && global_tab[el.name]) || (in_func && sym_tab[el.name])) {
+			AST_ERROR("Redeclaration of variable \"{0}\" : {1}", el.name, el.location);
+
+		} else {
+			(in_func ? sym_tab[el.name] : global_tab[el.name]) = el.var_type.get();
+		}
 		return nullptr;
 	}
 
 	llvm::Value* ASTChecker::visit(FunctionAST& el) {
+		in_func = true;
 		el.prototype->accept(*this);
-		el.body->accept(*this);
+		if (!err) {
+			el.body->accept(*this);
+		}
+		in_func = false;
+		sym_tab.clear();
 		return nullptr;
 	}
 
 	llvm::Value* ASTChecker::visit(FunctionDeclAST& el) {
-		func_tab[el.name] = el.func_type;
+		if (func_tab.count(el.name)) {
+			AST_ERROR("Redeclaration of function \"{0}\" : {1}", el.name, el.location);
+		} else {
+			func_tab[el.name] = el.func_type;
+
+		}
+		for (auto& decl : el.parameter_list) {
+			decl->accept(*this);
+		}
 		return nullptr;
 	}
 
@@ -53,7 +72,7 @@ namespace Vex {
 	}
 
 	llvm::Value* ASTChecker::visit(VariableAST& el) {
-		if (!sym_tab[el.name]) {
+		if (!sym_tab[el.name] && !global_tab[el.name]) {
 			AST_ERROR("Unknown variable name \"{0}\" : {1}", el.name, el.location);
 		} else if (el.indexExpr) {
 			if (auto int_expr = dynamic_cast<IntNumAST*>(el.indexExpr.get())) {
@@ -132,7 +151,7 @@ namespace Vex {
 	}
 
 	llvm::Value* ASTChecker::visit(InvocationAST& el) {
-		if (!func_tab[el.callee]) {
+		if (!func_tab.count(el.callee)) {
 			AST_ERROR("Unknown func name \"{0}\" : {1}", el.callee, el.location);
 		} else {
 			for (auto& arg : el.args) {
