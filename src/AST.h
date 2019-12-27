@@ -17,10 +17,10 @@ namespace Vex {
 		std::unique_ptr<unsigned int> array_size;
 		bool is_array;
 
-		explicit Type(const obj_type& s_type, std::unique_ptr<unsigned int> array_size) :
+		explicit Type(obj_type s_type, std::unique_ptr<unsigned int> array_size) :
 			s_type(s_type), array_size(std::move(array_size)), is_array(*this->array_size >= 0) {}
 
-		explicit Type(const obj_type& s_type) : s_type(s_type), array_size(nullptr), is_array(false) {}
+		explicit Type(obj_type s_type) : s_type(s_type), array_size(nullptr), is_array(false) {}
 	};
 
 
@@ -99,7 +99,7 @@ namespace Vex {
 	struct IntNumAST : public ExprAST {
 
 		unsigned int val;
-		IntNumAST(const unsigned int& val, yy::location& location) :
+		IntNumAST(int val, yy::location& location) :
 			ExprAST(location), val(val) {
 			std::cout << "Integer val is: " << this->val << std::endl;
 		}
@@ -112,7 +112,7 @@ namespace Vex {
 
 
 		double val;
-		FloatingNumAST(const double& val, yy::location& location) :
+		FloatingNumAST(double val, yy::location& location) :
 			ExprAST(location), val(val) {
 			std::cout << "Floating val is: " << this->val << std::endl;
 		}
