@@ -16,6 +16,7 @@ namespace Vex {
 	}
 
 	llvm::Value* ASTChecker::visit(VariableDeclAST& el) {
+		sym_tab[el.name] = el.var_type.get();
 		return nullptr;
 	}
 
@@ -26,6 +27,7 @@ namespace Vex {
 	}
 
 	llvm::Value* ASTChecker::visit(FunctionDeclAST& el) {
+		func_tab[el.name] = el.func_type;
 		return nullptr;
 	}
 
@@ -51,6 +53,19 @@ namespace Vex {
 	}
 
 	llvm::Value* ASTChecker::visit(VariableAST& el) {
+		if (!sym_tab[el.name]) {
+			AST_ERROR("Unknown variable name \"{0}\" : {1}", el.name, el.location);
+		} else if (el.indexExpr) {
+			if (auto int_expr = dynamic_cast<IntNumAST*>(el.indexExpr.get())) {
+				if (int_expr->val < 1) {
+					AST_ERROR("Index expr is <1 : {0}", el.location);
+				} else if (int_expr->val >= *sym_tab[el.name]->array_size) {
+					AST_ERROR("Array index out of range : {0}", el.location);
+				}
+			} else {
+				AST_ERROR("Index cannot be other than unsigned integer for \"{0}\": {1}", el.name, el.location);
+			}
+		}
 		return nullptr;
 	}
 
@@ -63,6 +78,7 @@ namespace Vex {
 	}
 
 	llvm::Value* ASTChecker::visit(AssignmentStatementAST& el) {
+		el.lvalue->accept(*this);
 		return nullptr;
 	}
 
@@ -116,8 +132,12 @@ namespace Vex {
 	}
 
 	llvm::Value* ASTChecker::visit(InvocationAST& el) {
-		for (auto& arg : el.args) {
-			arg->accept(*this);
+		if (!func_tab[el.callee]) {
+			AST_ERROR("Unknown func name \"{0}\" : {1}", el.callee, el.location);
+		} else {
+			for (auto& arg : el.args) {
+				arg->accept(*this);
+			}
 		}
 		return nullptr;
 	}
@@ -147,4 +167,7 @@ namespace Vex {
 		return nullptr;
 	}
 
+	bool ASTChecker::get_err() {
+		return err;
+	}
 }

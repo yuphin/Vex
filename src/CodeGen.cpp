@@ -7,7 +7,7 @@ namespace Vex {
 		Builder = std::make_unique<llvm::IRBuilder<>>(context);
 		fpm = std::make_unique<llvm::legacy::FunctionPassManager>(curr_module.get());
 		llvm::PassManagerBuilder pmbuilder;
-		pmbuilder.OptLevel = 3;
+		pmbuilder.OptLevel = 0;
 		pmbuilder.populateFunctionPassManager(*fpm);
 		pmbuilder.populateModulePassManager(mpm);
 		print = curr_module->getOrInsertFunction("printf",
@@ -30,6 +30,16 @@ namespace Vex {
 		o << *curr_module;
 		std::cout << ir_str;
 		*/
+	}
+
+	llvm::Value* CodeGen::get_addr(llvm::Value* v, const VariableAST& expr) {
+		VEX_ASSERT(expr.indexExpr, "Variable index cannot be null : {0}", expr.location);
+		auto int_expr = static_cast<IntNumAST*>(expr.indexExpr.get());
+
+		llvm::Value* index_vals[] = {
+			llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(context)),
+			create_int(int_expr->val, true) };
+		return Builder->CreateGEP(v, index_vals, "vector_cell");
 	}
 
 	llvm::Value* CodeGen::symbol_lookup(const std::string& name) {
@@ -436,12 +446,12 @@ namespace Vex {
 			return nullptr;
 		}
 		auto var = symbol_lookup(el.lvalue->name);
-		if (!var) {
-			std::cerr << "Unknown variable \n";
-			return nullptr;
-		}
 		llvm::Value* casted;
 		if (auto p_type = llvm::dyn_cast<llvm::PointerType>(var->getType())) {
+			if (p_type->getElementType()->isVectorTy()) {
+				var = get_addr(var, *el.lvalue.get());
+				p_type = llvm::cast<llvm::PointerType>(var->getType());
+			}
 			casted = cast_according_to_t(p_type->getElementType(), rhs_expr);
 		} else {
 			casted = cast_according_to_t(var->getType(), rhs_expr);
@@ -841,10 +851,8 @@ namespace Vex {
 			std::cerr << "Unknown variable!\n";
 		}
 		if (el.indexExpr) {
-			llvm::Value* index_vals[] = {
-				llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(context)),
-				create_int(dynamic_cast<IntNumAST*>(el.indexExpr.get())->val, true) };
-			v = Builder->CreateGEP(v, index_vals, "vector_cell");
+
+			v = get_addr(v, el);
 		}
 		auto type = get_type(v);
 		if (auto p_type = llvm::dyn_cast<llvm::PointerType>(type)) {

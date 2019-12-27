@@ -26,11 +26,16 @@ namespace Vex {
 		virtual llvm::Value* visit(InvocationAST& el) override;
 		virtual llvm::Value* visit(StatementAST& el) override;
 		virtual llvm::Value* visit(StatementBlockAST& el) override;
-
+		bool get_err();
 		private:
 		bool ret_in_statement = false;
+		bool err = false;
+		std::unordered_map<std::string, Type*> sym_tab;
+		std::unordered_map<std::string, obj_type> func_tab;
 
 
 	};
+
+#define AST_ERROR(...) {VEX_ERROR(__VA_ARGS__); err=true;}
 
 }

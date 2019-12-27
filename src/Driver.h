@@ -17,7 +17,7 @@ class driver {
 	std::map<std::string, int> variables;
 	std::unique_ptr<BaseAST> root;
 	std::unique_ptr<GlobalContext> global_context;
-	int result;
+	int result = 0;
 	// Run the parser on file F.  Return 0 on success.
 	int parse(const std::string& f);
 	// The name of the file being parsed.
