@@ -14,10 +14,10 @@ message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 message(STATUS "Current Source Dir:${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 include_directories(${LLVM_INCLUDE_DIRS})
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/spdlog/include)
 add_definitions(${LLVM_DEFINITIONS})
 set(SRC_FILES
-	src/Logger.cpp
+	    src/Logger.cpp
         src/main.cpp
         src/CodeGen.cpp
         src/ASTChecker.cpp
@@ -25,7 +25,7 @@ set(SRC_FILES
         src/Scanner.l
         src/Driver.cpp)
 set(HDR_FILES
-	src/Logger.h
+	    src/Logger.h
         src/Context.h
         src/Ast.h
         src/Visitor.h
@@ -44,10 +44,12 @@ bison_target(Parser src/Parser.y
         DEFINES_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/Parser.h
         COMPILE_FLAGS "-v")
 add_flex_bison_dependency(Scanner Parser)
+
 # Add source to this project's executable.
 add_executable (VexLLVM ${SRC_FILES} ${HDR_FILES} ${FLEX_Scanner_OUTPUTS} ${BISON_Parser_OUTPUTS})
 
 llvm_map_components_to_libnames(llvm_libs support core irreader all)
+
 # Link against LLVM libraries
 target_link_libraries(VexLLVM ${llvm_libs})
 
