@@ -14,8 +14,10 @@ message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 message(STATUS "Current Source Dir:${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 include_directories(${LLVM_INCLUDE_DIRS})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib)
 add_definitions(${LLVM_DEFINITIONS})
-set(SRC_FILES 
+set(SRC_FILES
+	src/Logger.cpp
         src/main.cpp
         src/CodeGen.cpp
         src/ASTChecker.cpp
@@ -23,6 +25,7 @@ set(SRC_FILES
         src/Scanner.l
         src/Driver.cpp)
 set(HDR_FILES
+	src/Logger.h
         src/Context.h
         src/Ast.h
         src/Visitor.h

@@ -10,6 +10,7 @@
   #include <string>
   #include <memory>
   #include "AST.h"
+  using namespace Vex;
   class driver;
 }
 
@@ -21,7 +22,6 @@
 %define parse.trace
 %define parse.error verbose
 %code {
-
     #include "Driver.h"
 }
 // Token prefix

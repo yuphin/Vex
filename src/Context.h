@@ -20,16 +20,20 @@
 #include <llvm/Support/TargetRegistry.h>
 #include <llvm/Transforms/Utils.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
-struct FuncContext {
-    std::unordered_map<std::string, llvm::AllocaInst*> sym_tab;
-    llvm::AllocaInst* return_val = nullptr;
-    llvm::BasicBlock* return_br = nullptr;
 
-};
-struct GlobalContext {
-    std::stack<FuncContext> call_stack;
-    std::unordered_map<std::string, llvm::Value* > sym_tab;
-    bool in_global_namespace = true;
-    bool in_statement = false;
-    
-};
+namespace Vex {
+	struct FuncContext {
+		std::unordered_map<std::string, llvm::AllocaInst*> sym_tab;
+		llvm::AllocaInst* return_val = nullptr;
+		llvm::BasicBlock* return_br = nullptr;
+
+	};
+	struct GlobalContext {
+		std::stack<FuncContext> call_stack;
+		std::unordered_map<std::string, llvm::Value* > sym_tab;
+		bool in_global_namespace = true;
+		bool in_statement = false;
+
+	};
+
+}

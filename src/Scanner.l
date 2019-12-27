@@ -15,7 +15,7 @@
 # include <string>
 # include "Driver.h"
 # include "Parser.h"
-
+using namespace Vex;
 
 %}
 
