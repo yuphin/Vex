@@ -17,5 +17,6 @@ int main(int argc, char* argv[]) {
 			std::cerr << "No file provided!" << '\n';
 
 	drv.generate_code();
+
 	return 0;
 }

@@ -143,6 +143,7 @@ namespace Vex {
 
 	// Base statement node
 	struct StatementAST : public BaseAST {
+		StatementAST() = default;
 		virtual llvm::Value* accept(Visitor& v) override {
 			return v.visit(*this);
 		}

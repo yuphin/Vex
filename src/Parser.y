@@ -146,15 +146,13 @@
                         // std::cout << "Contents of $2 is : " << $2->size() << std::endl; 
                         $$->insert($$->end(), std::make_move_iterator($2->begin()),
                             std::make_move_iterator($2->end()));
-                        // std::cout << "Contents of $$ is : " << $$->size() << std::endl; 
   } ; 
                  
 
   declaration: VAR variable_list {
-      $$ = std::move($2);
-
-  } ;                
-
+                        $$ = std::move($2);
+  } ;
+               
   parameter_list: %empty {
                        //   $$ = nullptr;
                         $$ = std::make_unique<std::vector<std::unique_ptr<VariableDeclAST>>>();
@@ -175,6 +173,13 @@
                         $$->emplace_back(std::make_unique<VariableDeclAST>(std::move($3),drv.location,std::move($5)));
                         // std::cout << "Contents(2) of $$ is : " << $$->size() << std::endl; 
 
+                }
+                | error {
+                       yyerrok;
+                       yyclearin;
+                       if(!$$) {
+                         $$ = std::make_unique<std::vector<std::unique_ptr<VariableDeclAST>>>();
+                       }
   } ;
 
   type: basic_type vector_extension {
@@ -188,12 +193,12 @@
   } ;
 
   basic_type: INT {
-                        $$ = INT;
+                        $$ = Vex::INT;
              }
              | REAL {
-                        $$ = REAL;
+                        $$ = Vex::REAL;
                         
-             } ;
+  } ;
 
   vector_extension: "[" INT_NUM "]" {
                         $$ = std::make_unique<unsigned int>($2); 
@@ -203,7 +208,7 @@
                    } 
                    | %empty {
                         $$ = nullptr;
-                   } ; 
+   } ; 
 
   statement_list: statement ";" {
                        $$ = std::make_unique<StatementBlockAST>(); 
@@ -213,8 +218,16 @@
                  | statement_list statement ";" {
                        $$ = std::move($1);
                        $$->statement_list.emplace_back(std::move($2));
+                 }  
+                 | error ";" {
+                       yyerrok;
+                       yyclearin;
+                       auto tmp = std::make_unique<StatementAST>();
+                       if(!$$){
 
-  } ;
+                            $$ = std::make_unique<StatementBlockAST>(); 
+                       }   
+   } ;
 
   statement: assignment_statement {
                        $$ = std::move($1);
@@ -327,8 +340,12 @@
          }
          | "(" expression ")" {
                        $$ = std::move($2);
-
-  };
+         }
+         | "(" error ")" {
+                       yyerrok;
+                       yyclearin;
+                       $$ = std::make_unique<ExprAST>(@$);
+  } ;
 
   argument_list: expression_list {
                        $$ = std::move($1);
@@ -405,7 +422,7 @@
 %%
 
 
-void yy::parser::error (const location_type& l, const std::string& m){
-  // TODO : Replace this with custom logger later on
-  std::cerr << l << ": " << m << '\n';
+void yy::parser::error (const location_type& l, const std::string& m) {
+    drv.result = 1;
+    VEX_ERROR("{0} : {1}",l,m);
 }

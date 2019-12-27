@@ -101,18 +101,14 @@ blank [ \t\r]
 yy::parser::symbol_type make_INTNUMBER (const std::string &s, const yy::parser::location_type& loc) {
   errno = 0;
   unsigned long val = strtoul(s.c_str(),nullptr,0);
-  if (!(val <= INT_MAX && errno != ERANGE)){
-    throw yy::parser::syntax_error (loc, "number is out of range: " + s);
-  }
+  VEX_ASSERT(val <= INT_MAX && errno != ERANGE,"{0}, number is out of range : {1}",loc,s);
   return yy::parser::make_INT_NUM ((int) val, loc);
 }
 
 yy::parser::symbol_type make_DBLNUMBER (const std::string &s, const yy::parser::location_type& loc) {
   errno = 0;
   double val = strtod(s.c_str(),nullptr);
-  if (!(val <= DBL_MAX && errno != ERANGE)){
-    throw yy::parser::syntax_error (loc, "number is out of range: " + s);
-  }
+  VEX_ASSERT(val <= DBL_MAX && errno != ERANGE,"{0}, number is out of range : {1}",loc,s);
   return yy::parser::make_DBL_NUM ((double) val, loc);
 }
 
@@ -120,9 +116,10 @@ void driver::scan_begin () {
   yy_flex_debug = trace_scanning;
   if (file.empty () || file == "-")
     yyin = stdin;
+
   else if (!(yyin = fopen (file.c_str (), "r")))
     {
-      std::cerr << "cannot open " << file << ": " << strerror(errno) << '\n';
+      VEX_ERROR("cannot open {:<30} : {0:d}",file.c_str(),strerror(errno));
       exit (EXIT_FAILURE);
     }
 }
