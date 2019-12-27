@@ -16,6 +16,8 @@ namespace Vex {
 		read = curr_module->getOrInsertFunction("scanf",
 			llvm::FunctionType::get(llvm::IntegerType::getInt32Ty(context),
 				llvm::PointerType::get(llvm::Type::getInt8Ty(context), 0), true));
+	
+	
 	}
 
 
@@ -30,6 +32,41 @@ namespace Vex {
 		o << *curr_module;
 		std::cout << ir_str;
 		*/
+	}
+
+	void CodeGen::emit_object_code(const std::string& filename) {
+		// Initializions for code generation
+		llvm::InitializeAllTargetInfos();
+		llvm::InitializeAllTargets();
+		llvm::InitializeAllTargetMCs();
+		llvm::InitializeAllAsmParsers();
+		llvm::InitializeAllAsmPrinters();
+		std::string err;
+		auto target_triple = llvm::sys::getDefaultTargetTriple();
+		auto target = llvm::TargetRegistry::lookupTarget(target_triple, err);
+		// Print an error and exit if we couldn't find the requested target.
+		// This generally occurs if we've forgotten to initialise the
+		// TargetRegistry or we have a bogus target triple.
+		VEX_ASSERT(target, err);
+		auto cpu = "generic";
+		auto features = "";
+		llvm::TargetOptions opts;
+		auto rm = llvm::Optional<llvm::Reloc::Model>();
+		auto target_machine = target->createTargetMachine(target_triple, cpu,
+			features, opts, rm);
+		curr_module->setDataLayout(target_machine->createDataLayout());
+		curr_module->setTargetTriple(target_triple);
+		std::error_code ec;
+		llvm::raw_fd_ostream dest(filename, ec, llvm::sys::fs::OF_None);
+		VEX_ASSERT(!ec, "Could not open file: {0}", ec.message());
+		llvm::legacy::PassManager pass;
+		auto file_type = llvm::TargetMachine::CGFT_ObjectFile;
+		VEX_ASSERT(
+			!target_machine->addPassesToEmitFile(pass, dest, nullptr, file_type),
+			"TargetMachine can't emit an object file of this type!"
+		);
+		pass.run(*curr_module);
+		dest.flush();
 	}
 
 	llvm::Value* CodeGen::get_addr(llvm::Value* v, const VariableAST& expr) {

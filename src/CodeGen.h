@@ -14,6 +14,7 @@ namespace Vex {
 		llvm::FunctionCallee print, read;
 		CodeGen(const std::string& module_name, GlobalContext* unit_context);
 		void print_IR();
+		void emit_object_code(const std::string& filename = "output.o");
 		virtual llvm::Value* visit(BaseAST& el) override;
 		virtual llvm::Value* visit(TopAST& el) override;
 		virtual llvm::Value* visit(VariableDeclAST& el) override;
