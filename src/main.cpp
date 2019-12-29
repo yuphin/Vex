@@ -6,15 +6,7 @@
 int main(int argc, char* argv[]) {
 	Vex::Logger::init();
 	driver drv;
-	for (int i = 1; i < argc; ++i)
-		if (argv[i] == std::string("-p"))
-			drv.trace_parsing = true;
-		else if (argv[i] == std::string("-s"))
-			drv.trace_scanning = true;
-		else if (!drv.parse(argv[i]))
-			std::cout << "Parsed!" << '\n';
-		else
-			std::cerr << "No file provided!" << '\n';
+	drv.parse_args(argc, argv);
 
 	drv.generate_code();
 

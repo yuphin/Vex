@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <regex>
 #include "Parser.h"
 #include "Context.h"
 
@@ -18,6 +19,8 @@ class driver {
 	std::unique_ptr<BaseAST> root;
 	std::unique_ptr<GlobalContext> global_context;
 	int result = 0;
+
+	void parse_args(int argc,char* argv[]);
 	// Run the parser on file F.  Return 0 on success.
 	int parse(const std::string& f);
 	// The name of the file being parsed.
@@ -31,4 +34,10 @@ class driver {
 	bool trace_scanning;
 	// The token's location used by the scanner.
 	yy::location location;
+
+	private:
+	int opt_level = 0;
+	bool emit_ir = false;
+	bool emit_oc = false;
+	std::string output_name = "";
 };

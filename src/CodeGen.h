@@ -12,9 +12,11 @@ namespace Vex {
 		llvm::legacy::PassManager mpm;
 		GlobalContext* unit_context;
 		llvm::FunctionCallee print, read;
-		CodeGen(const std::string& module_name, GlobalContext* unit_context);
-		void print_IR();
+		CodeGen(const std::string& module_name, GlobalContext* unit_context,
+			int opt_level = 0);
+		void emit_IR();
 		void emit_object_code(const std::string& filename = "output.o");
+		void emit_executable(const std::string& filename = "a");
 		virtual llvm::Value* visit(BaseAST& el) override;
 		virtual llvm::Value* visit(TopAST& el) override;
 		virtual llvm::Value* visit(VariableDeclAST& el) override;

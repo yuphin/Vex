@@ -1,13 +1,14 @@
 #include "CodeGen.h"
 namespace Vex {
 
-	CodeGen::CodeGen(const std::string& module_name, GlobalContext* unit_context) :
+	CodeGen::CodeGen(const std::string& module_name, GlobalContext* unit_context,
+		int opt_level) :
 		unit_context(unit_context) {
 		curr_module = std::make_unique<llvm::Module>(module_name, context);
 		Builder = std::make_unique<llvm::IRBuilder<>>(context);
 		fpm = std::make_unique<llvm::legacy::FunctionPassManager>(curr_module.get());
 		llvm::PassManagerBuilder pmbuilder;
-		pmbuilder.OptLevel = 0;
+		pmbuilder.OptLevel = opt_level;
 		pmbuilder.populateFunctionPassManager(*fpm);
 		pmbuilder.populateModulePassManager(mpm);
 		print = curr_module->getOrInsertFunction("printf",
@@ -16,31 +17,25 @@ namespace Vex {
 		read = curr_module->getOrInsertFunction("scanf",
 			llvm::FunctionType::get(llvm::IntegerType::getInt32Ty(context),
 				llvm::PointerType::get(llvm::Type::getInt8Ty(context), 0), true));
-	
-	
 	}
 
 
-	void CodeGen::print_IR() {
+	void CodeGen::emit_IR() {
 		curr_module->print(llvm::errs(), nullptr);
-		//curr_module->dump();
-		// curr_module->print(llvm::errs(),nullptr);
-		//	curr_module->dump();
-		/*
-		std::string ir_str;
-		llvm::raw_string_ostream o(ir_str);
-		o << *curr_module;
-		std::cout << ir_str;
-		*/
+		std::error_code ec;
+		llvm::raw_fd_ostream os("out.ll", ec, llvm::sys::fs::F_None);
+		os << *curr_module;
+		os.flush();
+		if (ec) {
+			VEX_ERROR("Could not write IR to out.ll : {0}", ec.message());
+		}
 	}
 
 	void CodeGen::emit_object_code(const std::string& filename) {
 		// Initializions for code generation
-		llvm::InitializeAllTargetInfos();
-		llvm::InitializeAllTargets();
-		llvm::InitializeAllTargetMCs();
-		llvm::InitializeAllAsmParsers();
-		llvm::InitializeAllAsmPrinters();
+		llvm::InitializeNativeTarget();
+		llvm::InitializeNativeTargetAsmPrinter();
+		llvm::InitializeNativeTargetAsmParser();
 		std::string err;
 		auto target_triple = llvm::sys::getDefaultTargetTriple();
 		auto target = llvm::TargetRegistry::lookupTarget(target_triple, err);
@@ -67,6 +62,37 @@ namespace Vex {
 		);
 		pass.run(*curr_module);
 		dest.flush();
+	}
+
+	void CodeGen::emit_executable(const std::string& filename) {
+
+		emit_object_code();
+		auto input =
+			"#include <stdio.h>\n"
+			"extern int main(void);\n";
+		std::ofstream out("main.cpp");
+		out << input;
+		out.close();
+		std::stringstream ss;
+#if defined(__clang__)
+		std::string prefix("clang++");
+#elif defined(__GNUC__) || defined(__GNUG__)
+		std::string prefix("g++");
+#elif defined(_MSC_VER)
+		std::string prefix("cl");
+#endif
+
+#if defined(_WIN32) || defined(_WIN64)
+		std::string postfix(".exe");
+#else
+		std::string postfix(".out);
+#endif
+
+		ss << prefix << " main.cpp output.o -o" << filename << postfix;
+		auto command = ss.str();
+		std::system(command.c_str());
+		remove("output.o");
+		remove("main.cpp");
 	}
 
 	llvm::Value* CodeGen::get_addr(llvm::Value* v, const VariableAST& expr) {
@@ -531,14 +557,14 @@ namespace Vex {
 		for (int i = 0; i < el.print_exprs.size(); i++) {
 			auto expr = el.print_exprs[i]->accept(*this);
 			if (expr->getType()->isDoubleTy()) {
-				ss << "%d";
-			} else {
 				ss << "%lf";
+			} else {
+				ss << "%d";
 			}
 			vals.push_back(expr);
 
 		}
-		ss << "\n";
+		ss << '\n';
 		auto print_prep = prepare_io(ss.str());
 		vals.insert(vals.begin(), print_prep);
 		Builder->CreateCall(print, vals);
@@ -560,9 +586,9 @@ namespace Vex {
 
 			}
 			if (get_type(expr)->isDoubleTy()) {
-				ss << "%d";
-			} else {
 				ss << "%lf";
+			} else {
+				ss << "%d";
 			}
 			vals.push_back(expr);
 

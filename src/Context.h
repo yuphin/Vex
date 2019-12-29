@@ -1,6 +1,9 @@
 #pragma once
 #include "Logger.h"
 #include <unordered_map>
+#include <fstream>
+#include <iostream>
+#include <cstdlib>
 #include <stack>
 #include <sstream> 
 #include <memory>
@@ -18,7 +21,11 @@
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Scalar/GVN.h>
 #include <llvm/Support/TargetSelect.h>
+#include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/TargetRegistry.h>
+#include <llvm/Target/TargetMachine.h>
+#include <llvm/Target/TargetOptions.h>
+#include <llvm/Support/FileSystem.h>
 #include <llvm/Transforms/Utils.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 
