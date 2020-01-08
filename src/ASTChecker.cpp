@@ -17,6 +17,12 @@ namespace Vex {
 	}
 
 	llvm::Value* ASTChecker::visit(VariableDeclAST& el) {
+
+		if (!in_func && el.var_type->is_array && !*el.var_type->array_size) {
+			AST_ERROR("Vector type cannot be empty outside the function : {0}", el.location);
+
+		}
+
 		if ((!in_func && global_tab[el.name]) || (in_func && sym_tab[el.name])) {
 			AST_ERROR("Redeclaration of variable \"{0}\" : {1}", el.name, el.location);
 

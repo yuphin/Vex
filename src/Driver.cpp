@@ -54,6 +54,7 @@ void driver::generate_code() {
 			if (emit_ir) {
 				cg.emit_IR();
 			}
+			
 			if (emit_oc) {
 				output_name != "" ?
 					cg.emit_object_code(output_name + ".o") :
@@ -63,6 +64,7 @@ void driver::generate_code() {
 					cg.emit_executable(output_name) :
 					cg.emit_executable();
 			}
+			
 		}
 
 

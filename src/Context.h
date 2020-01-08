@@ -36,6 +36,7 @@ namespace Vex {
 		std::unordered_map<std::string, llvm::AllocaInst*> sym_tab;
 		llvm::AllocaInst* return_val = nullptr;
 		llvm::BasicBlock* return_br = nullptr;
+		bool in_params = false;
 
 	};
 	struct GlobalContext {
@@ -43,6 +44,7 @@ namespace Vex {
 		std::unordered_map<std::string, llvm::Value* > sym_tab;
 		bool in_global_namespace = true;
 		bool in_statement = false;
+		bool lhs_eval = false;
 
 	};
 

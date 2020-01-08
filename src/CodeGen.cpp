@@ -11,11 +11,12 @@ namespace Vex {
 		pmbuilder.OptLevel = opt_level;
 		pmbuilder.populateFunctionPassManager(*fpm);
 		pmbuilder.populateModulePassManager(mpm);
-		print = curr_module->getOrInsertFunction("printf",
-			llvm::FunctionType::get(llvm::IntegerType::getInt32Ty(context),
+
+		print = curr_module->getOrInsertFunction("?print@@YAXPEBDZZ",
+			llvm::FunctionType::get(llvm::Type::getVoidTy(context),
 				llvm::PointerType::get(llvm::Type::getInt8Ty(context), 0), true));
-		read = curr_module->getOrInsertFunction("scanf",
-			llvm::FunctionType::get(llvm::IntegerType::getInt32Ty(context),
+		read = curr_module->getOrInsertFunction("?read@@YAXPEBDZZ",
+			llvm::FunctionType::get(llvm::Type::getVoidTy(context),
 				llvm::PointerType::get(llvm::Type::getInt8Ty(context), 0), true));
 	}
 
@@ -69,7 +70,19 @@ namespace Vex {
 		emit_object_code();
 		auto input =
 			"#include <stdio.h>\n"
-			"extern int main(void);\n";
+			"#include <stdarg.h>\n"
+			"extern int main(void);\n"
+			"void print(const char* format, ...) {"
+			" va_list arglist;"
+			" va_start(arglist, format);"
+			"  vprintf(format, arglist);"
+			" va_end(arglist); }"
+			"void read(const char *format, ...) {"
+			" va_list arglist;"
+			"  va_start(arglist, format);"
+			"   vscanf(format, arglist);"
+			"    va_end(arglist); }"
+			;
 		std::ofstream out("main.cpp");
 		out << input;
 		out.close();
@@ -88,20 +101,23 @@ namespace Vex {
 		std::string postfix(".out);
 #endif
 
-		ss << prefix << " main.cpp output.o -o" << filename << postfix;
+			ss << prefix << " main.cpp output.o -o" << filename << postfix;
 		auto command = ss.str();
 		std::system(command.c_str());
 		remove("output.o");
 		remove("main.cpp");
 	}
 
-	llvm::Value* CodeGen::get_addr(llvm::Value* v, const VariableAST& expr) {
-		VEX_ASSERT(expr.indexExpr, "Variable index cannot be null : {0}", expr.location);
-		auto int_expr = static_cast<IntNumAST*>(expr.indexExpr.get());
-
-		llvm::Value* index_vals[] = {
-			llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(context)),
-			create_int(int_expr->val, true) };
+	llvm::Value* CodeGen::get_addr(llvm::Value* v, int index) {
+		std::vector<llvm::Value*> index_vals;
+		if (llvm::cast<llvm::PointerType>(v->getType())->getElementType()->isVectorTy()) {
+			index_vals = {
+				llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(context)),
+				create_int(index, true)
+			};
+		} else {
+			index_vals = { create_int(index, true) };
+		}
 		return Builder->CreateGEP(v, index_vals, "vector_cell");
 	}
 
@@ -129,28 +145,23 @@ namespace Vex {
 				return nullptr;
 			}
 
-		} else {
+		} else if (unit_context->in_global_namespace || !unit_context->call_stack.top().in_params) {
 			llvm::ElementCount ec(4, true);
 			if (type.s_type == INT && *type.array_size > 0) {
 				return llvm::VectorType::get(llvm::Type::getInt32Ty(context), *type.array_size);
-			} else if (type.s_type == INT) {
-				return llvm::VectorType::get(llvm::Type::getInt32Ty(context), ec);
-
-
 			} else if (type.s_type == REAL && *type.array_size > 0) {
 				return llvm::VectorType::get(llvm::Type::getDoubleTy(context), *type.array_size);
-
-			} else if (type.s_type == REAL) {
-				llvm::ElementCount ec(2, false);
-				return llvm::VectorType::get(llvm::Type::getDoubleTy(context), *type.array_size);
-				return llvm::VectorType::get(llvm::Type::getDoubleTy(context), ec);
-
-			} else {
-				return nullptr;
 			}
-
+		} else {
+			// Passing vectors in parameters
+			if (type.s_type == INT) {
+				return llvm::PointerType::getUnqual(llvm::Type::getInt32Ty(context));
+			} else if (type.s_type == REAL) {
+				return llvm::PointerType::getUnqual(llvm::Type::getDoubleTy(context));
+			}
 		}
 
+		return nullptr;
 	}
 
 	llvm::Type* CodeGen::lookup_type(int type) {
@@ -179,7 +190,7 @@ namespace Vex {
 		}
 
 		if (underlying_type) {
-			if (auto ai = llvm::dyn_cast<llvm::SequentialType>(t)) {
+			if (auto ai = llvm::dyn_cast<llvm::PointerType>(t)) {
 				t = ai->getElementType();
 			}
 
@@ -188,7 +199,6 @@ namespace Vex {
 
 		return t;
 	}
-
 
 	llvm::Value* CodeGen::create_binary(llvm::Value* LHS, llvm::Value* RHS, int op, const llvm::Twine& name = "") {
 		llvm::Type* l_type = get_type(LHS, true);
@@ -508,18 +518,16 @@ namespace Vex {
 		if (!rhs_expr) {
 			return nullptr;
 		}
-		auto var = symbol_lookup(el.lvalue->name);
-		llvm::Value* casted;
+		unit_context->lhs_eval = true;
+		auto var = el.lvalue->accept(*this);
+		unit_context->lhs_eval = false;
+
 		if (auto p_type = llvm::dyn_cast<llvm::PointerType>(var->getType())) {
-			if (p_type->getElementType()->isVectorTy()) {
-				var = get_addr(var, *el.lvalue.get());
-				p_type = llvm::cast<llvm::PointerType>(var->getType());
-			}
-			casted = cast_according_to_t(p_type->getElementType(), rhs_expr);
+			auto casted = cast_according_to_t(p_type->getElementType(), rhs_expr);
+			Builder->CreateStore(casted, var);
 		} else {
-			casted = cast_according_to_t(var->getType(), rhs_expr);
+			VEX_ERROR("Invalid lvalue {0} : {1}", el.lvalue->name, el.lvalue->location);
 		}
-		Builder->CreateStore(casted, var);
 		// We don't really need to return var
 		return nullptr;
 	}
@@ -790,8 +798,31 @@ namespace Vex {
 	llvm::Value* CodeGen::visit(VariableDeclAST& el) {
 		if (unit_context->in_global_namespace) {
 			llvm::GlobalVariable* global_var = new llvm::GlobalVariable(*curr_module,
-				lookup_type(*el.var_type), false, llvm::Function::ExternalLinkage, 0, el.name, 0,
+				lookup_type(*el.var_type), false, llvm::GlobalValue::InternalLinkage,
+				0, el.name, 0,
 				llvm::GlobalValue::NotThreadLocal, 0, false);
+			if (el.var_type->s_type == INT && el.var_type->is_array) {
+				std::vector<uint32_t> zeros(*el.var_type->array_size, 0);
+				global_var->setInitializer(
+					llvm::ConstantDataVector::get(
+						context,
+						zeros
+					));
+			} else 	if (el.var_type->s_type == INT) {
+				global_var->setInitializer(
+					llvm::ConstantInt::get(context, llvm::APInt(32, 0, true)));
+			} else 	if (el.var_type->s_type == REAL && el.var_type->is_array) {
+				std::vector<double> zeros(*el.var_type->array_size, 0);
+				global_var->setInitializer(
+					llvm::ConstantDataVector::get(
+						context,
+						zeros
+					));
+			} else 	if (el.var_type->s_type == REAL) {
+				global_var->setInitializer(
+					llvm::ConstantFP::get(context, llvm::APFloat(0.0)));
+			}
+
 			unit_context->sym_tab[el.name] = global_var;
 		} else {
 			// We are in the function context
@@ -809,10 +840,14 @@ namespace Vex {
 		// First, check for an existing function from a previous 'extern' declaration.
 		auto func = curr_module->getFunction(el.prototype->name);
 		// Insert return statement alloca
-		if (!func)
+		if (!func) {
+			unit_context->call_stack.top().in_params = true;
 			func = static_cast<llvm::Function*>(el.prototype->accept(*this));
-		if (!func)
+			unit_context->call_stack.top().in_params = false;
+		}
+		if (!func) {
 			return nullptr;
+		}
 
 		// Create a new basic block to start insertion into.
 		llvm::BasicBlock* bb = llvm::BasicBlock::Create(context, "entry", func);
@@ -870,7 +905,7 @@ namespace Vex {
 	}
 
 	llvm::Value* CodeGen::visit(ExprAST& el) {
-		return nullptr;
+		return el.accept(*this);
 	}
 
 	llvm::Value* CodeGen::visit(BinaryExprAST& el) {
@@ -914,14 +949,20 @@ namespace Vex {
 			std::cerr << "Unknown variable!\n";
 		}
 		if (el.indexExpr) {
-
-			v = get_addr(v, el);
+			auto type = llvm::cast<llvm::PointerType>(v->getType());
+			v = Builder->CreateLoad(type->getElementType(), v, el.name);
+			v = get_addr(v, static_cast<IntNumAST*>(el.indexExpr.get())->val);
+		} else if (llvm::cast<llvm::PointerType>(v->getType())->getElementType()->isVectorTy()) {
+			// A Vector without an index, pass the first index as pointer
+			v = get_addr(v, 1);
+			return v;
 		}
-		auto type = get_type(v);
-		if (auto p_type = llvm::dyn_cast<llvm::PointerType>(type)) {
-			return Builder->CreateLoad(p_type->getElementType(), v, el.name);
+		if (unit_context->lhs_eval) {
+			return v;
+		} else {
+			auto type = llvm::cast<llvm::PointerType>(v->getType());
+			return Builder->CreateLoad(type->getElementType(), v, el.name);
 		}
-		return Builder->CreateLoad(type, v, el.name);
 	}
 
 	llvm::Value* CodeGen::visit(InvocationAST& el) {
@@ -936,7 +977,9 @@ namespace Vex {
 			return nullptr;
 		}
 		std::vector<llvm::Value*> args_vector;
+
 		for (unsigned i = 0, e = el.args.size(); i != e; ++i) {
+
 			args_vector.push_back(el.args[i]->accept(*this));
 			if (!args_vector.back())
 				return nullptr;
