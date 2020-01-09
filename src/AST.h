@@ -101,7 +101,9 @@ namespace Vex {
 		unsigned int val;
 		IntNumAST(int val, yy::location& location) :
 			ExprAST(location), val(val) {
+#ifdef DEBUG
 			std::cout << "Integer val is: " << this->val << std::endl;
+#endif
 		}
 		IntNumAST(int val) : val(val) {}
 		virtual llvm::Value* accept(Visitor& v) override {
@@ -115,7 +117,9 @@ namespace Vex {
 		double val;
 		FloatingNumAST(double val, yy::location& location) :
 			ExprAST(location), val(val) {
+#ifdef DEBUG
 			std::cout << "Floating val is: " << this->val << std::endl;
+#endif
 		}
 		FloatingNumAST(double val) : val(val) {}
 		virtual llvm::Value* accept(Visitor& v) override {

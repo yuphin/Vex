@@ -12,13 +12,24 @@ namespace Vex {
 		pmbuilder.populateFunctionPassManager(*fpm);
 		pmbuilder.populateModulePassManager(mpm);
 
+#if defined (_WIN64) ||  defined (_WIN32)
+		// TODO: Fix later(Not position independent)
 		print = curr_module->getOrInsertFunction("?print@@YAXPEBDZZ",
 			llvm::FunctionType::get(llvm::Type::getVoidTy(context),
 				llvm::PointerType::get(llvm::Type::getInt8Ty(context), 0), true));
 		read = curr_module->getOrInsertFunction("?read@@YAXPEBDZZ",
 			llvm::FunctionType::get(llvm::Type::getVoidTy(context),
 				llvm::PointerType::get(llvm::Type::getInt8Ty(context), 0), true));
+#else
+		print = curr_module->getOrInsertFunction("printf",
+			llvm::FunctionType::get(llvm::Type::getVoidTy(context),
+				llvm::PointerType::get(llvm::Type::getInt8Ty(context), 0), true));
+		read = curr_module->getOrInsertFunction("scanf",
+			llvm::FunctionType::get(llvm::Type::getVoidTy(context),
+				llvm::PointerType::get(llvm::Type::getInt8Ty(context), 0), true));
+#endif
 	}
+
 
 
 	void CodeGen::emit_IR() {
@@ -90,7 +101,7 @@ namespace Vex {
 #if defined(__clang__)
 		std::string prefix("clang++");
 #elif defined(__GNUC__) || defined(__GNUG__)
-		std::string prefix("g++");
+		std::string prefix("g++ -no-pie");
 #elif defined(_MSC_VER)
 		std::string prefix("cl");
 #endif
@@ -98,7 +109,7 @@ namespace Vex {
 #if defined(_WIN32) || defined(_WIN64)
 		std::string postfix(".exe");
 #else
-		std::string postfix(".out);
+		std::string postfix(".out");
 #endif
 
 			ss << prefix << " main.cpp output.o -o" << filename << postfix;
@@ -950,7 +961,9 @@ namespace Vex {
 		}
 		if (el.indexExpr) {
 			auto type = llvm::cast<llvm::PointerType>(v->getType());
-			v = Builder->CreateLoad(type->getElementType(), v, el.name);
+			if (type->getElementType()->isPointerTy()) {
+				v = Builder->CreateLoad(type->getElementType(), v, el.name);
+			}
 			v = get_addr(v, static_cast<IntNumAST*>(el.indexExpr.get())->val);
 		} else if (llvm::cast<llvm::PointerType>(v->getType())->getElementType()->isVectorTy()) {
 			// A Vector without an index, pass the first index as pointer

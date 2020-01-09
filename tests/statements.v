@@ -3,7 +3,13 @@ var var1 : int;
 var var3 : real;
 var new_var : int[10], next_var : real[50];
 
-int func bar()
+int func bar(var1: real[])
+    var var2: real;
+    var2 := var1[1];
+    print var2,var1[1];
+    if var1[2] then
+        return 2;
+    endif;
     return 1;
 endfunc
 int func foo()
@@ -13,7 +19,7 @@ int func foo()
     % if statement
 
     read next_var[1],var3;
-    if next_var[1] or bar() then
+    if next_var[1] or bar(next_var) then
         return 2;
     else
         print next_var[1];

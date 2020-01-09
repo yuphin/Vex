@@ -103,7 +103,6 @@
 %type <std::unique_ptr<std::vector<std::unique_ptr<ExprAST>>>> print_expression
 %type <std::unique_ptr<std::vector<std::unique_ptr<VariableAST>>>> read_expression
 
-%printer {yyo << $$;} <*>
 
 %left AND OR NOT
 

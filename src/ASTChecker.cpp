@@ -86,7 +86,7 @@ namespace Vex {
 			if (auto int_expr = dynamic_cast<IntNumAST*>(el.indexExpr.get())) {
 				if (int_expr->val < 1) {
 					AST_ERROR("Index expr is <1 : {0}", el.location);
-				} else if (int_expr->val >= *sym_tab[el.name]->array_size) {
+				} else if (*sym_tab[el.name]->array_size && int_expr->val >= *sym_tab[el.name]->array_size) {
 					AST_ERROR("Array index out of range : {0}", el.location);
 				}
 			} else {
