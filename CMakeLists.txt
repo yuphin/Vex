@@ -5,8 +5,8 @@ cmake_minimum_required (VERSION 3.8)
 
 project ("VexLLVM")
 
-find_package(BISON)
-find_package(FLEX)
+find_package(BISON 3.4)
+find_package(FLEX 2.6.4)
 find_package(LLVM 9 REQUIRED CONFIG)
 
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
