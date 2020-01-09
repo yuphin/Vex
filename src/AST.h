@@ -103,6 +103,7 @@ namespace Vex {
 			ExprAST(location), val(val) {
 			std::cout << "Integer val is: " << this->val << std::endl;
 		}
+		IntNumAST(int val) : val(val) {}
 		virtual llvm::Value* accept(Visitor& v) override {
 			return v.visit(*this);
 		}
@@ -116,6 +117,7 @@ namespace Vex {
 			ExprAST(location), val(val) {
 			std::cout << "Floating val is: " << this->val << std::endl;
 		}
+		FloatingNumAST(double val) : val(val) {}
 		virtual llvm::Value* accept(Visitor& v) override {
 			return v.visit(*this);
 		}

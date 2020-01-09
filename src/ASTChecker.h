@@ -29,8 +29,11 @@ namespace Vex {
 		bool get_err();
 		private:
 		bool ret_in_statement = false;
+		bool is_inner_stmt_block = false;
 		bool err = false;
 		bool in_func = false;
+		obj_type func_type;
+		std::string func_name;
 		std::unordered_map<std::string, Type*> sym_tab;
 		std::unordered_map<std::string, Type*> global_tab;
 		std::unordered_map<std::string, obj_type> func_tab;

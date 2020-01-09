@@ -44,6 +44,8 @@ namespace Vex {
 	}
 
 	llvm::Value* ASTChecker::visit(FunctionDeclAST& el) {
+		this->func_type = el.func_type;
+		this->func_name = el.name;
 		if (func_tab.count(el.name)) {
 			AST_ERROR("Redeclaration of function \"{0}\" : {1}", el.name, el.location);
 		} else {
@@ -142,17 +144,23 @@ namespace Vex {
 	}
 
 	llvm::Value* ASTChecker::visit(ForStatementAST& el) {
+		bool has_outer_block = this->is_inner_stmt_block ? true : false;
+		this->is_inner_stmt_block = !has_outer_block;
 		el.assign_statement->accept(*this);
 		el.to_expr->accept(*this);
 		if (el.by_expr)
 			el.by_expr->accept(*this);
 		el.statement_block->accept(*this);
+		this->is_inner_stmt_block = has_outer_block;
 		return nullptr;
 	}
 
 	llvm::Value* ASTChecker::visit(WhileStatementAST& el) {
+		bool has_outer_block = this->is_inner_stmt_block ? true : false;
+		this->is_inner_stmt_block = !has_outer_block;
 		el.while_expr->accept(*this);
 		el.statement_block->accept(*this);
+		this->is_inner_stmt_block = has_outer_block;
 		return nullptr;
 	}
 
@@ -176,6 +184,7 @@ namespace Vex {
 		auto it = el.statement_list.begin();
 		while (it != el.statement_list.end()) {
 			if (has_ret || ret_in_statement) {
+				VEX_INFO("Removing rest of the statements in {0}", this->func_name);
 				it = el.statement_list.erase(it);
 				continue;
 			} else {
@@ -188,7 +197,24 @@ namespace Vex {
 			it++;
 
 		}
-		this->ret_in_statement = false;
+		if (!has_ret && !ret_in_statement && !is_inner_stmt_block) {
+			// Statement block has no return statement, we add it instead
+			VEX_INFO("'return' not found, placing 1 at the end of func {0}", this->func_name);
+			if (this->func_type == INT) {
+				el.statement_list.emplace_back(
+					std::make_unique<ReturnStatementAST>(
+						std::make_unique<IntNumAST>(1)
+						));
+			} else if (this->func_type == REAL) {
+				el.statement_list.emplace_back(
+					std::make_unique<ReturnStatementAST>(
+						std::make_unique<FloatingNumAST>(1.0)
+						));
+			}
+		} else {
+			this->ret_in_statement = false;
+
+		}
 		return nullptr;
 	}
 
