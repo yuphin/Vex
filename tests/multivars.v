@@ -1,6 +1,6 @@
 % this is a comment
 
-var var1 : real, var2: int, var3: int[], var4: real[];
+var var2 : int, var3 : real[5];
 
 real func foo()
     var var1:real;
@@ -10,17 +10,17 @@ real func foo()
 
     while var1 < var2 do
         print var1 + var2;
-        read var4,var3;
+        read var2;
     endwhile;
     return var2;
 endfunc
 
 int func bar()
-    var  var1:int,var3 :int[4], var4:real[];
+    var  var1:int,var3 :int[4], var4:real[5];
 
     print foo();
 
-    return var4;
+    return var2;
 endfunc
 
 int func test()
@@ -30,4 +30,5 @@ endfunc
 int func main()
     var var1 : real;
     var1 := 3.14523141;
+    return 6;
 endfunc

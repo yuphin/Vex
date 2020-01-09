@@ -1,11 +1,14 @@
 int func fib(n:int)
     if n <= 1 then
-        return n;
+        return 1;
     endif;
     return fib(n-1) + fib(n-2);
 endfunc
 
 
 int func main()
-    return fib(13);
+    var result : int;
+    result := fib(20);
+    print result;
+    return result;
 endfunc
