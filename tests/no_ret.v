@@ -4,15 +4,13 @@ real func foo()
     return var1;
 endfunc
 
-
-
 int func test()
     var var1 : int;
     var1 := -1;
     if var1 > 0 then
-        return 1;
+        return 5;
     else
-        return 0;
+        return 10;
     endif;
 endfunc
 
@@ -20,7 +18,7 @@ int func if_only()
     var var1 : int;
     var1 := -1;
     if var1 > 0 then
-        return 1;
+        return 2;
     endif;
 endfunc
 
@@ -60,5 +58,17 @@ endfunc
 
 int func main()
     var var1 : real;
+    % should read val then print 1.0
+    print plain_real();
+    % should print 7
+    print while_loop();
+    % should print 1
+    print loops();
+    % should print 1
+    print if_only();
+    % should print 10
+    print test();
+    % should print 5
+    print foo();
     var1 := 6;
 endfunc
