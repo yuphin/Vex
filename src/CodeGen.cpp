@@ -394,15 +394,15 @@ namespace Vex {
 	}
 
 	llvm::Value* CodeGen::cast_according_to(llvm::Value* LHS, llvm::Value* RHS) {
+	
 		llvm::Type* l_type, * r_type;
 
 		std::tie(l_type, r_type) = get_underlying_type(LHS, RHS);
+		VEX_ASSERT(!l_type->isIntegerTy() || !r_type->isDoubleTy(),
+			"Cannot convert from real to int type!");
 		if (l_type == r_type) {
 			return RHS;
 
-		} else if (l_type->isIntegerTy() && r_type->isDoubleTy()) {
-			auto casted_RHS = Builder->CreateFPToSI(RHS, get_type(LHS), "casttmp");
-			return casted_RHS;
 		} else {
 			auto casted_RHS = Builder->CreateSIToFP(RHS, get_type(LHS), "casttmp");
 			return casted_RHS;
@@ -413,14 +413,14 @@ namespace Vex {
 	}
 
 	llvm::Value* CodeGen::cast_according_to_t(llvm::Type* l_type, llvm::Value* RHS) {
+	
 		llvm::Type* r_type = get_type(RHS, true);
 
+		VEX_ASSERT(!l_type->isIntegerTy() || !r_type->isDoubleTy(),
+			"Cannot convert from real to int type!");
 		if (l_type == r_type) {
 			return RHS;
 
-		} else if (l_type->isIntegerTy() && r_type->isDoubleTy()) {
-			auto casted_RHS = Builder->CreateFPToSI(RHS, l_type, "casttmp");
-			return casted_RHS;
 		} else {
 			auto casted_RHS = Builder->CreateSIToFP(RHS, l_type, "casttmp");
 			return casted_RHS;
