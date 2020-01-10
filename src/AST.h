@@ -4,11 +4,21 @@
 #include <memory>
 #include <iostream>
 #include "location.hh"
+#include "ASTPayload.h"
 #include "CodeGen.h"
 #include "ASTChecker.h"
+
+#define ACCEPT(X) virtual X accept(Visitor<X>& v) override {return v.visit(*this);}
+#define ACCEPT_Z(X) virtual X accept(Visitor<X>&v) = 0;
+#define GENERATE_ACCEPTORS() ACCEPT(llvm::Value*) \
+							 ACCEPT(std::unique_ptr<ASTPayload>)
+
+#define GENERATE_ABSTRCT_FUNCS() ACCEPT_Z(llvm::Value*) \
+								 ACCEPT_Z(std::unique_ptr<ASTPayload>)
+
+
 namespace Vex {
-
-
+	struct ASTPayload;
 
 	// Type structure for holding variable types
 	struct Type {
@@ -25,7 +35,8 @@ namespace Vex {
 
 
 	struct AST {
-		virtual llvm::Value* accept(Visitor& v) = 0;
+		GENERATE_ABSTRCT_FUNCS()
+
 	};
 
 	struct BaseAST : public  AST {
@@ -35,9 +46,7 @@ namespace Vex {
 		virtual ~BaseAST() {}
 		BaseAST() {}
 		BaseAST(yy::location location) : location(location) {}
-		virtual  llvm::Value* accept(Visitor& v) override {
-			return v.visit(*this);
-		}
+		GENERATE_ACCEPTORS()
 
 	};
 
@@ -50,10 +59,7 @@ namespace Vex {
 		ExprAST(yy::location& location) : BaseAST(location) {}
 		ExprAST(yy::location& location, const double& val) : BaseAST(location), val(val) {}
 		ExprAST() {}
-		virtual  llvm::Value* accept(Visitor& v) override {
-			return v.visit(*this);
-
-		}
+		GENERATE_ACCEPTORS()
 	};
 
 	struct BinaryExprAST : public ExprAST {
@@ -64,9 +70,7 @@ namespace Vex {
 			std::unique_ptr<ExprAST> RHS, yy::location& location)
 			: ExprAST(location),
 			binop(binop), LHS(std::move(LHS)), RHS(std::move(RHS)) {}
-		virtual llvm::Value* accept(Visitor& v) override {
-			return v.visit(*this);
-		}
+		GENERATE_ACCEPTORS()
 	};
 
 	struct UnaryExprAST : public ExprAST {
@@ -75,9 +79,7 @@ namespace Vex {
 
 		UnaryExprAST(un_op unop, std::unique_ptr<ExprAST> LHS, yy::location& location)
 			: ExprAST(location), unop(unop), LHS(std::move(LHS)) {}
-		virtual  llvm::Value* accept(Visitor& v) override {
-			return v.visit(*this);
-		}
+		GENERATE_ACCEPTORS()
 	};
 
 	struct VariableAST : public ExprAST {
@@ -89,9 +91,7 @@ namespace Vex {
 			ExprAST(location), name(std::move(name)), indexExpr(std::move(indexExpr)) {}
 		VariableAST(std::string&& name, yy::location& location) :
 			ExprAST(location), name(std::move(name)), indexExpr(nullptr) {}
-		virtual llvm::Value* accept(Visitor& v) override {
-			return v.visit(*this);
-		}
+		GENERATE_ACCEPTORS()
 	};
 
 
@@ -104,12 +104,10 @@ namespace Vex {
 #ifdef DEBUG
 			std::cout << "Integer val is: " << this->val << std::endl;
 #endif
-		}
+	}
 		IntNumAST(int val) : val(val) {}
-		virtual llvm::Value* accept(Visitor& v) override {
-			return v.visit(*this);
-		}
-	};
+		GENERATE_ACCEPTORS()
+};
 
 	struct FloatingNumAST : public ExprAST {
 
@@ -120,11 +118,9 @@ namespace Vex {
 #ifdef DEBUG
 			std::cout << "Floating val is: " << this->val << std::endl;
 #endif
-		}
+	}
 		FloatingNumAST(double val) : val(val) {}
-		virtual llvm::Value* accept(Visitor& v) override {
-			return v.visit(*this);
-		}
+		GENERATE_ACCEPTORS()
 	};
 
 	// For function calls
@@ -135,16 +131,12 @@ namespace Vex {
 
 		InvocationAST(std::string&& callee, std::vector<std::unique_ptr<ExprAST>> args)
 			: callee(std::move(callee)), args(std::move(args)) {}
-		virtual llvm::Value* accept(Visitor& v) override {
-			return v.visit(*this);
-		}
+		GENERATE_ACCEPTORS()
 	};
 
 	// Base statement node
 	struct StatementAST : public BaseAST {
-		virtual llvm::Value* accept(Visitor& v) override {
-			return v.visit(*this);
-		}
+		GENERATE_ACCEPTORS()
 	};
 
 
@@ -154,16 +146,12 @@ namespace Vex {
 
 		AssignmentStatementAST(std::unique_ptr<VariableAST> lvalue, std::unique_ptr<ExprAST> expr) :
 			lvalue(std::move(lvalue)), expr(std::move(expr)) {}
-		virtual llvm::Value* accept(Visitor& v) override {
-			return v.visit(*this);
-		}
+		GENERATE_ACCEPTORS()
 	};
 	struct ReturnStatementAST : public StatementAST {
 		std::unique_ptr<ExprAST> expr;
 		ReturnStatementAST(std::unique_ptr<ExprAST> expr) : expr(std::move(expr)) {}
-		virtual llvm::Value* accept(Visitor& v) override {
-			return v.visit(*this);
-		}
+		GENERATE_ACCEPTORS()
 	};
 
 	struct PrintStatementAST : public StatementAST {
@@ -171,9 +159,7 @@ namespace Vex {
 
 		PrintStatementAST(std::vector<std::unique_ptr<ExprAST>> print_exprs) :
 			print_exprs(std::move(print_exprs)) {}
-		virtual llvm::Value* accept(Visitor& v) override {
-			return v.visit(*this);
-		}
+		GENERATE_ACCEPTORS()
 	};
 
 	struct ReadStatementAST : public StatementAST {
@@ -181,9 +167,7 @@ namespace Vex {
 
 		ReadStatementAST(std::vector<std::unique_ptr<VariableAST>> read_exprs) :
 			read_exprs(std::move(read_exprs)) {}
-		virtual  llvm::Value* accept(Visitor& v) override {
-			return v.visit(*this);
-		}
+		GENERATE_ACCEPTORS()
 	};
 
 	struct ForStatementAST : public StatementAST {
@@ -204,9 +188,7 @@ namespace Vex {
 			std::unique_ptr<StatementBlockAST> statement_block) :
 			assign_statement(std::move(assign_statement)), to_expr(std::move(to_expr)),
 			by_expr(std::move(by_expr)), statement_block(std::move(statement_block)) {}
-		virtual llvm::Value* accept(Visitor& v) override {
-			return v.visit(*this);
-		}
+		GENERATE_ACCEPTORS()
 	};
 
 	struct IfStatementAST : public StatementAST {
@@ -222,9 +204,7 @@ namespace Vex {
 			std::unique_ptr<StatementBlockAST> then_blk,
 			std::unique_ptr<StatementBlockAST> else_blk) :
 			if_expr(std::move(if_expr)), then_blk(std::move(then_blk)), else_blk(std::move(else_blk)) {}
-		virtual  llvm::Value* accept(Visitor& v) override {
-			return v.visit(*this);
-		}
+		GENERATE_ACCEPTORS()
 	};
 
 	struct WhileStatementAST : public StatementAST {
@@ -237,9 +217,7 @@ namespace Vex {
 			std::unique_ptr<StatementBlockAST> statement_block) :
 			while_expr(std::move(while_expr)), statement_block(std::move(statement_block)) {}
 
-		virtual llvm::Value* accept(Visitor& v) override {
-			return v.visit(*this);
-		}
+		GENERATE_ACCEPTORS()
 	};
 	struct VariableDeclAST : public BaseAST {
 		std::unique_ptr<Type> var_type;
@@ -247,9 +225,7 @@ namespace Vex {
 
 		VariableDeclAST(std::string&& name, yy::location& location, std::unique_ptr<Type> var_type) :
 			BaseAST(location), var_type(std::move(var_type)), name(std::move(name)) {}
-		virtual  llvm::Value* accept(Visitor& v) override {
-			return v.visit(*this);
-		}
+		GENERATE_ACCEPTORS()
 	};
 
 
@@ -263,18 +239,14 @@ namespace Vex {
 			obj_type& func_type, std::vector <std::unique_ptr<VariableDeclAST>> parameter_list) :
 			BaseAST(location), func_type(func_type),
 			name(std::move(name)), parameter_list(std::move(parameter_list)) {}
-		virtual llvm::Value* accept(Visitor& v) override {
-			return v.visit(*this);
-		}
+		GENERATE_ACCEPTORS()
 	};
 
 
 	struct StatementBlockAST : public BaseAST {
 		std::vector<std::unique_ptr<StatementAST>> statement_list;
 
-		virtual llvm::Value* accept(Visitor& v) override {
-			return v.visit(*this);
-		}
+		GENERATE_ACCEPTORS()
 
 	};
 
@@ -288,9 +260,7 @@ namespace Vex {
 			, std::unique_ptr<StatementBlockAST> statement_block) :
 			declaration_list(std::move(declaration_list)),
 			statement_block(std::move(statement_block)) {}
-		virtual  llvm::Value* accept(Visitor& v) override {
-			return v.visit(*this);
-		}
+		GENERATE_ACCEPTORS()
 	};
 
 
@@ -300,9 +270,7 @@ namespace Vex {
 
 		FunctionAST(std::unique_ptr<FunctionDeclAST> prototype, std::unique_ptr<FunctionBodyAST> body)
 			: prototype(std::move(prototype)), body(std::move(body)) {}
-		virtual  llvm::Value* accept(Visitor& v) override {
-			return v.visit(*this);
-		}
+		GENERATE_ACCEPTORS()
 	};
 
 
@@ -315,9 +283,7 @@ namespace Vex {
 		TopAST(std::vector<std::unique_ptr<VariableDeclAST>> declaration_list,
 			std::vector<std::unique_ptr<FunctionAST>> function_list
 		) : declaration_list(std::move(declaration_list)), function_list(std::move(function_list)) {}
-		virtual  llvm::Value* accept(Visitor& v) override {
-			return v.visit(*this);
-		}
+		GENERATE_ACCEPTORS()
 	};
 }
 

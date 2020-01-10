@@ -4,7 +4,6 @@
 cmake_minimum_required (VERSION 3.8)
 
 project ("vex")
-
 find_package(BISON 3.4)
 find_package(FLEX 2.6.4)
 find_package(LLVM 9 REQUIRED CONFIG)
@@ -21,6 +20,7 @@ set(SRC_FILES
         src/main.cpp
         src/CodeGen.cpp
         src/ASTChecker.cpp
+        src/ASTPayload.cpp
         src/Parser.y
         src/Scanner.l
         src/Driver.cpp)
@@ -30,6 +30,7 @@ set(HDR_FILES
         src/Ast.h
         src/Visitor.h
         src/CodeGen.h
+        src/ASTPayload.h
         src/ASTChecker.h
         src/Driver.h)
 

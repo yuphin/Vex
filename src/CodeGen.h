@@ -3,7 +3,7 @@
 #include "AST.h"
 
 namespace Vex {
-	struct CodeGen : public Visitor {
+	struct CodeGen : public Visitor<llvm::Value*> {
 
 		llvm::LLVMContext context;
 		std::unique_ptr<llvm::Module> curr_module;
