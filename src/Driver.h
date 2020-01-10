@@ -6,15 +6,15 @@
 
 // Give Flex the prototype of yylex we want ...
 # define YY_DECL \
-  yy::parser::symbol_type yylex (driver& drv)
+  yy::parser::symbol_type yylex (Driver& drv)
 // ... and declare it for the parser's sake.
 YY_DECL;
 
 using namespace Vex;
-class driver {
+class Driver {
 	public:
 
-	driver();
+	Driver();
 	std::map<std::string, int> variables;
 	std::unique_ptr<BaseAST> root;
 	std::unique_ptr<GlobalContext> global_context;

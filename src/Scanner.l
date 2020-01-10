@@ -112,7 +112,7 @@ yy::parser::symbol_type make_DBLNUMBER (const std::string &s, const yy::parser::
   return yy::parser::make_DBL_NUM ((double) val, loc);
 }
 
-void driver::scan_begin () {
+void Driver::scan_begin () {
   yy_flex_debug = trace_scanning;
   if (file.empty () || file == "-")
     yyin = stdin;
@@ -124,7 +124,7 @@ void driver::scan_begin () {
     }
 }
 
-void driver::scan_end () {
+void Driver::scan_end () {
   fclose (yyin);
 }
 

@@ -2,11 +2,11 @@
 #include "Parser.h"
 
 using namespace Vex;
-driver::driver() : trace_parsing(false), trace_scanning(false) {
+Driver::Driver() : trace_parsing(false), trace_scanning(false) {
 	global_context = std::make_unique<GlobalContext>();
 }
 
-void driver::parse_args(int argc, char* argv[]) {
+void Driver::parse_args(int argc, char* argv[]) {
 	std::regex opts("-O[0-3]");
 	std::regex fn("(.*).v");
 	std::string input_name = "";
@@ -33,7 +33,7 @@ void driver::parse_args(int argc, char* argv[]) {
 	VEX_ASSERT(!parse(input_name), "Parsing failed");
 }
 
-int driver::parse(const std::string& f) {
+int Driver::parse(const std::string& f) {
 	file = f;
 	location.initialize(&file);
 	scan_begin();
@@ -44,7 +44,7 @@ int driver::parse(const std::string& f) {
 	return res;
 }
 
-void driver::generate_code() {
+void Driver::generate_code() {
 	if (!result) {
 		CodeGen cg("main", global_context.get(), opt_level);
 		ASTChecker ac;

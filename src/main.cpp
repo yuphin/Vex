@@ -5,7 +5,7 @@
 
 int main(int argc, char* argv[]) {
 	Vex::Logger::init();
-	driver drv;
+	Driver drv;
 	drv.parse_args(argc, argv);
 
 	drv.generate_code();
