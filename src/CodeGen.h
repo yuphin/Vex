@@ -41,6 +41,8 @@ namespace Vex {
 		virtual llvm::Value* visit(StatementBlockAST& el) override;
 
 		private:
+		std::pair<llvm::Type*, llvm::Type*> get_underlying_type(llvm::Value*, llvm::Value*);
+		llvm::Type* get_underlying_type(llvm::Value*);
 		llvm::Value* get_addr(llvm::Value* v, int index);
 		llvm::Value* symbol_lookup(const std::string& name);
 		llvm::Type* lookup_type(const Type& type);

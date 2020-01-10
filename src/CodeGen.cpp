@@ -112,11 +112,31 @@ namespace Vex {
 		std::string postfix(".out");
 #endif
 
-			ss << prefix << " main.cpp output.o -o" << filename << postfix;
+		ss << prefix << " main.cpp output.o -o" << filename << postfix;
 		auto command = ss.str();
 		std::system(command.c_str());
 		remove("output.o");
 		remove("main.cpp");
+	}
+
+	std::pair<llvm::Type*, llvm::Type*> CodeGen::get_underlying_type(llvm::Value* LHS, llvm::Value* RHS) {
+		llvm::Type* l_type = get_type(LHS, true);
+		llvm::Type* r_type = get_type(RHS, true);
+		if (auto v = llvm::dyn_cast<llvm::VectorType>(l_type)) {
+			// Here we assume both l_types and r_types are equal
+			r_type = llvm::cast<llvm::VectorType>(r_type)->getVectorElementType();
+			l_type = v->getVectorElementType();
+		}
+		return std::make_pair(l_type, r_type);
+	}
+
+	llvm::Type* CodeGen::get_underlying_type(llvm::Value* LHS) {
+		llvm::Type* l_type = get_type(LHS, true);
+		if (auto v = llvm::dyn_cast<llvm::VectorType>(l_type)) {
+			// Here we assume both l_types and r_types are equal
+			l_type = v->getVectorElementType();
+		}
+		return l_type;
 	}
 
 	llvm::Value* CodeGen::get_addr(llvm::Value* v, int index) {
@@ -212,7 +232,7 @@ namespace Vex {
 	}
 
 	llvm::Value* CodeGen::create_binary(llvm::Value* LHS, llvm::Value* RHS, int op, const llvm::Twine& name = "") {
-		llvm::Type* l_type = get_type(LHS, true);
+		llvm::Type* l_type = get_underlying_type(LHS);
 
 		switch (op) {
 		case EQ: {
@@ -262,91 +282,6 @@ namespace Vex {
 				return Builder->CreateFCmp(llvm::CmpInst::FCMP_OGE, LHS, RHS, "tmpgte");
 			}
 			break;
-		}
-		case AND: {
-			// Logical and
-			auto r_type = get_type(RHS, true);
-			auto prev_insert = Builder->GetInsertBlock();
-			llvm::Function* enclosing_func = Builder->GetInsertBlock()->getParent();
-			llvm::BasicBlock* first_block = llvm::BasicBlock::Create(context, "and_1", enclosing_func);
-			llvm::BasicBlock* second_block = llvm::BasicBlock::Create(context, "and_exit", enclosing_func);
-
-			llvm::Value* zero_val_l;
-			llvm::Value* zero_val_r;
-			if (l_type->isIntegerTy() && l_type->getIntegerBitWidth() == 32) {
-				zero_val_l = llvm::ConstantInt::get(context, llvm::APInt(32, 0, true));
-			} else if (l_type->isDoubleTy()) {
-				zero_val_l = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
-			} else {
-				zero_val_l = LHS;
-			}
-
-			if (r_type->isIntegerTy() && r_type->getIntegerBitWidth() == 32) {
-				zero_val_r = llvm::ConstantInt::get(context, llvm::APInt(32, 0, true));
-			} else if (r_type->isDoubleTy()) {
-				zero_val_r = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
-			} else {
-				zero_val_r = RHS;
-			}
-
-			// Check if the first expr is not equal to 0 
-			auto not_zero_l = create_binary(LHS, zero_val_l, NEQ);
-
-			Builder->CreateCondBr(not_zero_l, first_block, second_block);
-			Builder->SetInsertPoint(first_block);
-			auto not_zero_r = create_binary(RHS, zero_val_r, NEQ);
-			Builder->CreateBr(second_block);
-			Builder->SetInsertPoint(second_block);
-			llvm::PHINode* pn = Builder->CreatePHI(llvm::Type::getInt1Ty(context), 2, "and_merge");
-			auto false_t = llvm::ConstantInt::getFalse(llvm::Type::getInt1Ty(context));
-			pn->addIncoming(false_t, prev_insert);
-			pn->addIncoming(not_zero_r, first_block);
-			return pn;
-
-			break;
-		}
-		case OR: {
-			// Logical or
-			auto r_type = get_type(RHS, true);
-			auto prev_insert = Builder->GetInsertBlock();
-			llvm::Function* enclosing_func = Builder->GetInsertBlock()->getParent();
-			llvm::BasicBlock* first_block = llvm::BasicBlock::Create(context, "or_1", enclosing_func);
-			llvm::BasicBlock* second_block = llvm::BasicBlock::Create(context, "or_exit", enclosing_func);
-
-			llvm::Value* zero_val_l;
-			llvm::Value* zero_val_r;
-			if (l_type->isIntegerTy() && l_type->getIntegerBitWidth() == 32) {
-				zero_val_l = llvm::ConstantInt::get(context, llvm::APInt(32, 0, true));
-			} else if (l_type->isDoubleTy()) {
-				zero_val_l = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
-			} else {
-				zero_val_l = LHS;
-			}
-
-			if (r_type->isIntegerTy() && r_type->getIntegerBitWidth() == 32) {
-				zero_val_r = llvm::ConstantInt::get(context, llvm::APInt(32, 0, true));
-			} else if (r_type->isDoubleTy()) {
-				zero_val_r = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
-			} else {
-				zero_val_r = RHS;
-			}
-
-			// Check if the first expr is not equal to 0 
-			auto zero_l = create_binary(LHS, zero_val_l, EQ);
-
-			Builder->CreateCondBr(zero_l, first_block, second_block);
-			Builder->SetInsertPoint(first_block);
-			auto zero_r = create_binary(RHS, zero_val_r, NEQ);
-			Builder->CreateBr(second_block);
-			Builder->SetInsertPoint(second_block);
-			llvm::PHINode* pn = Builder->CreatePHI(llvm::Type::getInt1Ty(context), 2, "and_e");
-			auto true_t = llvm::ConstantInt::getTrue(llvm::Type::getInt1Ty(context));
-			pn->addIncoming(true_t, prev_insert);
-			pn->addIncoming(zero_r, first_block);
-			return pn;
-
-			break;
-
 		}
 		case NOT: {
 
@@ -410,8 +345,9 @@ namespace Vex {
 	}
 
 	std::pair<llvm::Value*, llvm::Value*> CodeGen::cast_values(llvm::Value* LHS, llvm::Value* RHS) {
-		llvm::Type* l_type = get_type(LHS, true);
-		llvm::Type* r_type = get_type(RHS, true);
+		llvm::Type* l_type, * r_type;
+
+		std::tie(l_type, r_type) = get_underlying_type(LHS, RHS);
 		if (l_type == r_type) {
 			return std::make_pair(LHS, RHS);
 
@@ -458,9 +394,9 @@ namespace Vex {
 	}
 
 	llvm::Value* CodeGen::cast_according_to(llvm::Value* LHS, llvm::Value* RHS) {
-		llvm::Type* l_type = get_type(LHS, true);
-		llvm::Type* r_type = get_type(RHS, true);
+		llvm::Type* l_type, * r_type;
 
+		std::tie(l_type, r_type) = get_underlying_type(LHS, RHS);
 		if (l_type == r_type) {
 			return RHS;
 
@@ -533,12 +469,9 @@ namespace Vex {
 		auto var = el.lvalue->accept(*this);
 		unit_context->lhs_eval = false;
 
-		if (auto p_type = llvm::dyn_cast<llvm::PointerType>(var->getType())) {
-			auto casted = cast_according_to_t(p_type->getElementType(), rhs_expr);
-			Builder->CreateStore(casted, var);
-		} else {
-			VEX_ERROR("Invalid lvalue {0} : {1}", el.lvalue->name, el.lvalue->location);
-		}
+		VEX_ASSERT(var->getType()->isPointerTy(), "Invalid lvalue {0} : {1}", el.lvalue->name, el.lvalue->location);
+		auto casted = cast_according_to(var, rhs_expr);
+		Builder->CreateStore(casted, var);
 		// We don't really need to return var
 		return nullptr;
 	}
@@ -547,23 +480,24 @@ namespace Vex {
 		auto& return_val = unit_context->call_stack.top().return_val;
 		auto& return_br = unit_context->call_stack.top().return_br;
 		auto enclosing_func = Builder->GetInsertBlock()->getParent();
+		auto ret_expr = el.expr->accept(*this);
+		if (ret_expr->getType() != enclosing_func->getReturnType()) {
+			ret_expr = cast_according_to_t(enclosing_func->getReturnType(), ret_expr);
+		}
+
 		if (unit_context->in_statement) {
-			auto ret_expr = el.expr->accept(*this);
+
 			if (!return_br) {
 				return_br = llvm::BasicBlock::Create(context, "return_label");
-			}
-			if (ret_expr->getType() != enclosing_func->getReturnType()) {
-				ret_expr = cast_according_to_t(enclosing_func->getReturnType(), ret_expr);
 			}
 			Builder->CreateStore(ret_expr, return_val);
 			Builder->CreateBr(return_br);
 			return return_br;
 
 		} else if (!return_br) {
-			auto ret_val = el.expr->accept(*this);
-			Builder->CreateRet(ret_val);
+			Builder->CreateRet(ret_expr);
 		} else {
-			auto ret_expr = el.expr->accept(*this);
+			// We have return label and are not inside any statement block
 			Builder->CreateStore(ret_expr, return_val);
 			Builder->CreateBr(return_br);
 		}
@@ -576,9 +510,9 @@ namespace Vex {
 		for (int i = 0; i < el.print_exprs.size(); i++) {
 			auto expr = el.print_exprs[i]->accept(*this);
 			if (expr->getType()->isDoubleTy()) {
-				ss << "%lf";
+				ss << "%lf ";
 			} else {
-				ss << "%d";
+				ss << "%d ";
 			}
 			vals.push_back(expr);
 
@@ -604,7 +538,7 @@ namespace Vex {
 				expr = Builder->CreateGEP(expr, index_vals, "vector_cell");
 
 			}
-			if (get_type(expr)->isDoubleTy()) {
+			if (get_underlying_type(expr)->isDoubleTy()) {
 				ss << "%lf";
 			} else {
 				ss << "%d";
@@ -761,7 +695,7 @@ namespace Vex {
 		llvm::Value* zero_val;
 		auto expr_type = get_type(while_val);
 		if (expr_type->isIntegerTy()) {
-			zero_val = llvm::ConstantInt::getFalse(llvm::Type::getInt1Ty(context));
+			zero_val = llvm::ConstantInt::get(context, llvm::APInt(32, 0, true));
 		} else {
 			zero_val = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
 		}
@@ -920,13 +854,104 @@ namespace Vex {
 	}
 
 	llvm::Value* CodeGen::visit(BinaryExprAST& el) {
-		llvm::Value* L = el.LHS->accept(*this);
-		llvm::Value* R = el.RHS->accept(*this);
+
 		if (el.binop != AND && el.binop != OR) {
+			llvm::Value* L = el.LHS->accept(*this);
+			llvm::Value* R = el.RHS->accept(*this);
 			auto casted = cast_values(L, R);
 			return create_binary(casted.first, casted.second, el.binop);
+
+		} else if (el.binop == AND) {
+			// Logical and
+
+			auto LHS = el.LHS->accept(*this);
+			auto l_type = get_type(LHS);
+			auto prev_insert = Builder->GetInsertBlock();
+			llvm::Function* enclosing_func = Builder->GetInsertBlock()->getParent();
+			llvm::BasicBlock* first_block = llvm::BasicBlock::Create(context, "and_1", enclosing_func);
+			llvm::BasicBlock* second_block = llvm::BasicBlock::Create(context, "and_exit", enclosing_func);
+
+			llvm::Value* zero_val_l;
+			llvm::Value* zero_val_r;
+			if (l_type->isIntegerTy() && l_type->getIntegerBitWidth() == 32) {
+				zero_val_l = llvm::ConstantInt::get(context, llvm::APInt(32, 0, true));
+			} else if (l_type->isDoubleTy()) {
+				zero_val_l = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
+			} else {
+				zero_val_l = LHS;
+			}
+
+
+
+			// Check if the first expr is not equal to 0 
+			auto not_zero_l = create_binary(LHS, zero_val_l, NEQ);
+
+			Builder->CreateCondBr(not_zero_l, first_block, second_block);
+			Builder->SetInsertPoint(first_block);
+
+			auto RHS = el.RHS->accept(*this);
+			auto r_type = get_type(RHS);
+			if (r_type->isIntegerTy() && r_type->getIntegerBitWidth() == 32) {
+				zero_val_r = llvm::ConstantInt::get(context, llvm::APInt(32, 0, true));
+			} else if (r_type->isDoubleTy()) {
+				zero_val_r = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
+			} else {
+				zero_val_r = RHS;
+			}
+			auto not_zero_r = create_binary(RHS, zero_val_r, NEQ);
+			Builder->CreateBr(second_block);
+			Builder->SetInsertPoint(second_block);
+			llvm::PHINode* pn = Builder->CreatePHI(llvm::Type::getInt1Ty(context), 2, "and_merge");
+			auto false_t = llvm::ConstantInt::getFalse(llvm::Type::getInt1Ty(context));
+			pn->addIncoming(false_t, prev_insert);
+			pn->addIncoming(not_zero_r, first_block);
+			return pn;
+
 		} else {
-			return create_binary(L, R, el.binop);
+			// Logical OR case
+			auto LHS = el.LHS->accept(*this);
+			auto l_type = get_type(LHS);
+			//auto r_type = get_type(RHS, true);
+			auto prev_insert = Builder->GetInsertBlock();
+			llvm::Function* enclosing_func = Builder->GetInsertBlock()->getParent();
+			llvm::BasicBlock* first_block = llvm::BasicBlock::Create(context, "or_1", enclosing_func);
+			llvm::BasicBlock* second_block = llvm::BasicBlock::Create(context, "or_exit", enclosing_func);
+
+			llvm::Value* zero_val_l;
+			llvm::Value* zero_val_r;
+			if (l_type->isIntegerTy() && l_type->getIntegerBitWidth() == 32) {
+				zero_val_l = llvm::ConstantInt::get(context, llvm::APInt(32, 0, true));
+			} else if (l_type->isDoubleTy()) {
+				zero_val_l = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
+			} else {
+				zero_val_l = LHS;
+			}
+
+
+			// Check if the first expr is not equal to 0 
+			auto zero_l = create_binary(LHS, zero_val_l, EQ);
+
+			Builder->CreateCondBr(zero_l, first_block, second_block);
+			Builder->SetInsertPoint(first_block);
+
+			auto RHS = el.RHS->accept(*this);
+			auto r_type = get_type(RHS);
+			if (r_type->isIntegerTy() && r_type->getIntegerBitWidth() == 32) {
+				zero_val_r = llvm::ConstantInt::get(context, llvm::APInt(32, 0, true));
+			} else if (r_type->isDoubleTy()) {
+				zero_val_r = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
+			} else {
+				zero_val_r = RHS;
+			}
+			auto zero_r = create_binary(RHS, zero_val_r, NEQ);
+			Builder->CreateBr(second_block);
+			Builder->SetInsertPoint(second_block);
+			llvm::PHINode* pn = Builder->CreatePHI(llvm::Type::getInt1Ty(context), 2, "or_merge");
+			auto true_t = llvm::ConstantInt::getTrue(llvm::Type::getInt1Ty(context));
+			pn->addIncoming(true_t, prev_insert);
+			pn->addIncoming(zero_r, first_block);
+			return pn;
+
 		}
 	}
 
@@ -965,7 +990,8 @@ namespace Vex {
 				v = Builder->CreateLoad(type->getElementType(), v, el.name);
 			}
 			v = get_addr(v, static_cast<IntNumAST*>(el.indexExpr.get())->val);
-		} else if (llvm::cast<llvm::PointerType>(v->getType())->getElementType()->isVectorTy()) {
+		} else if (unit_context->invoke_func &&
+			llvm::cast<llvm::PointerType>(v->getType())->getElementType()->isVectorTy()) {
 			// A Vector without an index, pass the first index as pointer
 			v = get_addr(v, 1);
 			return v;
@@ -979,6 +1005,7 @@ namespace Vex {
 	}
 
 	llvm::Value* CodeGen::visit(InvocationAST& el) {
+		unit_context->invoke_func = true;
 		llvm::Function* callee = curr_module->getFunction(el.callee);
 
 		if (!callee) {
@@ -997,6 +1024,8 @@ namespace Vex {
 			if (!args_vector.back())
 				return nullptr;
 		}
+
+		unit_context->invoke_func = false;
 		return Builder->CreateCall(callee, args_vector, "callfunc");
 
 	}

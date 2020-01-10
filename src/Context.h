@@ -5,6 +5,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <stack>
+#include <tuple>
 #include <sstream> 
 #include <memory>
 #include <llvm/IR/Value.h>
@@ -45,6 +46,7 @@ namespace Vex {
 		bool in_global_namespace = true;
 		bool in_statement = false;
 		bool lhs_eval = false;
+		bool invoke_func = false;
 
 	};
 
