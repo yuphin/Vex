@@ -18,8 +18,6 @@
 #define GENERATE_ABSTRCT_FUNCS() ACCEPT_Z(llvm::Value*) \
 								 ACCEPT_Z(std::unique_ptr<ASTPayload>) \
 								 ACCEPT_Z(void)
-
-
 namespace Vex {
 	struct ASTPayload;
 
@@ -34,6 +32,8 @@ namespace Vex {
 			s_type(s_type), array_size(std::move(array_size)), is_array(*this->array_size >= 0) {}
 
 		explicit Type(obj_type s_type) : s_type(s_type), array_size(nullptr), is_array(false) {}
+
+
 	};
 
 

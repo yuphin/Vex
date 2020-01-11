@@ -42,6 +42,7 @@ namespace Vex {
 
 		private:
 		std::pair<llvm::Type*, llvm::Type*> get_underlying_type(llvm::Value*, llvm::Value*);
+		std::pair<llvm::Type*, llvm::Type*> get_underlying_type(llvm::Type*, llvm::Value*);
 		llvm::Type* get_underlying_type(llvm::Value*);
 		llvm::Value* get_addr(llvm::Value* v, int index);
 		llvm::Value* symbol_lookup(const std::string& name);
@@ -54,7 +55,12 @@ namespace Vex {
 		llvm::AllocaInst* insert_alloca_to_top(llvm::Function* func,
 			const std::string& var_name, llvm::Type* type);
 		llvm::Value* cast_according_to(llvm::Value* LHS, llvm::Value* RHS);
+
+		// l_type and RHS types might differ in their types(which is the case for this func)
+		// It's up to caller's responsibility to supply the correct types in this func
 		llvm::Value* cast_according_to_t(llvm::Type* l_type, llvm::Value* RHS);
+
+		bool should_cast(llvm::Type* l_type, llvm::Value* RHS);
 		llvm::Constant* prepare_io(const std::string& str);
 		llvm::Value* create_int(const int& val, bool should_decrement);
 

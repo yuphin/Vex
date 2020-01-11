@@ -50,6 +50,7 @@ namespace Vex {
 		bool in_statement = false;
 		bool lhs_eval = false;
 		bool invoke_func = false;
+		llvm::Type* func_arg_type;
 
 	};
 

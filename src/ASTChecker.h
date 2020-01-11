@@ -33,6 +33,19 @@ namespace Vex {
 		virtual std::unique_ptr<ASTPayload> visit(StatementBlockAST& el) override;
 		bool get_err();
 		private:
+		struct FuncPayload {
+			std::vector<Type*> params;
+			std::string name;
+			yy::location loc;
+			obj_type func_type;
+
+			FuncPayload(
+				std::vector<Type*> params,
+				const obj_type& func_type, 
+				const std::string& name, 
+				const yy::location& loc) :
+				params(std::move(params)), name(name), loc(loc), func_type(func_type){}
+		};
 		bool in_func = false;
 		bool ret_in_statement = false;
 		bool is_inner_stmt_block = false;
@@ -41,12 +54,15 @@ namespace Vex {
 		std::string func_name;
 		std::unordered_map<std::string, Type*> sym_tab;
 		std::unordered_map<std::string, Type*> global_tab;
-		std::unordered_map<std::string, obj_type*> func_tab;
+		std::unordered_map<std::string, std::unique_ptr<FuncPayload>> func_tab;
 		Type* find_sym(const std::string&);
+		void check_compatibility(ASTPayload* arg_ty, FuncPayload* param_ty, const int& idx);
 
 
 	};
 
 #define AST_ERROR(...) {VEX_ERROR(__VA_ARGS__); err=true;}
+#define AST_ASSERT(x, ...) { if(!(x)) { VEX_ERROR(__VA_ARGS__); err=true; } }
+	
 
 }

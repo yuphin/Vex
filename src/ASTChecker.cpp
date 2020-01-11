@@ -49,7 +49,14 @@ namespace Vex {
 		if (func_tab[el.name]) {
 			AST_ERROR("Redeclaration of function \"{0}\" : {1}", el.name, el.location);
 		} else {
-			func_tab[el.name] = &el.func_type;
+			std::vector<Type*> param_vec;
+			// To save some allocations
+			param_vec.reserve(4);
+			for (const auto& param : el.parameter_list) {
+				param_vec.push_back(param->var_type.get());
+			}
+			func_tab[el.name] = std::make_unique<FuncPayload>(
+				std::move(param_vec), el.func_type, el.name, el.location);
 		}
 		for (auto& decl : el.parameter_list) {
 			decl->accept(*this);
@@ -95,7 +102,7 @@ namespace Vex {
 			if (auto int_expr = dynamic_cast<IntNumAST*>(el.indexExpr.get())) {
 				if (int_expr->val < 1) {
 					AST_ERROR("Index expr is <1 : {0}", el.location);
-				} else if (*var_type->array_size &&  int_expr->val > *var_type->array_size) {
+				} else if (*var_type->array_size && int_expr->val > * var_type->array_size) {
 					AST_ERROR("Array index out of range : {0}", el.location);
 				}
 			} else {
@@ -119,9 +126,11 @@ namespace Vex {
 	std::unique_ptr<ASTPayload> ASTChecker::visit(AssignmentStatementAST& el) {
 		auto LHS = el.lvalue->accept(*this);
 		auto RHS = el.expr->accept(*this);
-
+		if (!LHS || !RHS) {
+			return nullptr;
+		}
 		if (LHS->get_basic_type() < RHS->get_basic_type()) {
-			AST_ERROR("Cannot convert from 'real' to 'int' type : {0}", RHS->loc);
+			AST_ERROR("Cannot convert from 'real' to 'int' type : {0}", LHS->loc);
 		}
 
 		return nullptr;
@@ -190,14 +199,18 @@ namespace Vex {
 	}
 
 	std::unique_ptr<ASTPayload> ASTChecker::visit(InvocationAST& el) {
-		obj_type* func_type = nullptr;
-		if ((func_type = func_tab[el.callee])) {
-			for (auto& arg : el.args) {
-				arg->accept(*this);
-			}
+		VEX_ASSERT(func_tab[el.callee], "Unknown func name \"{0}\" : {1}", el.callee, el.location);
+		FuncPayload* func_info = func_tab[el.callee].get();
+		auto counter = 0;
+		for (auto& arg : el.args) {
+			auto arg_payload = arg->accept(*this);
+			check_compatibility(arg_payload.get(), func_info, counter);
+			counter++;
 		}
-		VEX_ASSERT(func_type, "Unknown func name \"{0}\" : {1}", el.callee, el.location);
-		return std::make_unique<ASTPayload>(*func_type, el.location);
+		AST_ASSERT(counter == func_info->params.size(),
+			"Invalid signature for func {0} ( {1} vs {2} ) : {3}",
+			el.callee, counter, func_info->params.size(), el.location);
+		return std::make_unique<ASTPayload>(func_info->func_type, el.location);
 	}
 
 	std::unique_ptr<ASTPayload> ASTChecker::visit(StatementAST& el) {
@@ -253,5 +266,25 @@ namespace Vex {
 			return global_tab[var_name];
 		}
 		return nullptr;
+	}
+	void ASTChecker::check_compatibility(ASTPayload* arg_ty, FuncPayload* params_ty, const int& idx) {
+		AST_ASSERT(idx < params_ty->params.size(),
+			"Invalid parameter for func {0} : {1]", params_ty->name, params_ty->loc);
+		if (auto var_ty = arg_ty->ty_info) {
+			auto param_val = params_ty->params[idx];
+			AST_ASSERT(param_val->s_type >= var_ty->s_type,
+				"Cannot cast between types in arg {0} for call at {1} : {2}",
+				idx, params_ty->name, params_ty->loc);
+			AST_ASSERT(!(var_ty->is_array ^ param_val->is_array),
+				"Incompatible types in arg {0} for call at {1} : {2}"
+				, idx, params_ty->name, params_ty->loc);
+			if (var_ty->is_array && *param_val->array_size > 0) {
+				AST_ASSERT(*var_ty->array_size == *param_val->array_size,
+					"Incompatible array sizes {0} and {1} for call at {2} : {3}",
+					*var_ty->array_size, *param_val->array_size, params_ty->name, params_ty->loc);
+			}
+
+		}
+
 	}
 }
