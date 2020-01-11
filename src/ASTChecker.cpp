@@ -74,7 +74,7 @@ namespace Vex {
 		auto LHS = el.LHS->accept(*this);
 		auto RHS = el.RHS->accept(*this);
 
-		return std::move(*LHS < *RHS ? LHS : RHS);
+		return std::move(*LHS < *RHS ? RHS : LHS);
 	}
 
 	std::unique_ptr<ASTPayload> ASTChecker::visit(UnaryExprAST& el) {
@@ -83,7 +83,8 @@ namespace Vex {
 
 	std::unique_ptr<ASTPayload> ASTChecker::visit(VariableAST& el) {
 		std::unique_ptr<ASTPayload> ret_val = nullptr;
-		if (auto var_type = find_sym(el.name)) {
+		Type* var_type = nullptr;
+		if ((var_type = find_sym(el.name))) {
 			ret_val = std::make_unique<ASTPayload>(var_type, el.location);
 		} else {
 			AST_ERROR("Unknown variable name \"{0}\" : {1}", el.name, el.location);
@@ -94,7 +95,7 @@ namespace Vex {
 			if (auto int_expr = dynamic_cast<IntNumAST*>(el.indexExpr.get())) {
 				if (int_expr->val < 1) {
 					AST_ERROR("Index expr is <1 : {0}", el.location);
-				} else if (*sym_tab[el.name]->array_size && int_expr->val >= *sym_tab[el.name]->array_size) {
+				} else if (*var_type->array_size &&  int_expr->val > *var_type->array_size) {
 					AST_ERROR("Array index out of range : {0}", el.location);
 				}
 			} else {
@@ -127,14 +128,21 @@ namespace Vex {
 	}
 
 	std::unique_ptr<ASTPayload> ASTChecker::visit(ReturnStatementAST& el) {
+		el.expr->accept(*this);
 		return nullptr;
 	}
 
 	std::unique_ptr<ASTPayload> ASTChecker::visit(PrintStatementAST& el) {
+		for (const auto& expr : el.print_exprs) {
+			expr->accept(*this);
+		}
 		return nullptr;
 	}
 
 	std::unique_ptr<ASTPayload> ASTChecker::visit(ReadStatementAST& el) {
+		for (const auto& expr : el.read_exprs) {
+			expr->accept(*this);
+		}
 		return nullptr;
 	}
 
@@ -208,7 +216,6 @@ namespace Vex {
 				it->get()->accept(*this);
 			}
 			if (!has_ret && dynamic_cast<ReturnStatementAST*>(it->get())) {
-				it->get()->accept(*this);
 				has_ret = true;
 			}
 			it++;
