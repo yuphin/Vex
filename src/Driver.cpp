@@ -24,6 +24,8 @@ void Driver::parse_args(int argc, char* argv[]) {
 			emit_ir = true;
 		} else if (argv[i] == std::string("-emit-oc")) {
 			emit_oc = true;
+		} else if (argv[i] == std::string("-emit-ast")) {
+			emit_ast = true;
 		} else if (std::regex_match(argv[i], fn)) {
 			input_name = argv[i];
 		} else {
@@ -54,17 +56,19 @@ void Driver::generate_code() {
 			if (emit_ir) {
 				cg.emit_IR();
 			}
-			
 			if (emit_oc) {
 				output_name != "" ?
 					cg.emit_object_code(output_name + ".o") :
 					cg.emit_object_code();
+			} else if (emit_ast) {
+				ASTPrinter ap;
+				root->accept(ap);
 			} else {
 				output_name != "" ?
 					cg.emit_executable(output_name) :
 					cg.emit_executable();
 			}
-			
+
 		}
 
 

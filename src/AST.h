@@ -7,14 +7,17 @@
 #include "ASTPayload.h"
 #include "CodeGen.h"
 #include "ASTChecker.h"
+#include "ASTPrinter.h"
 
 #define ACCEPT(X) virtual X accept(Visitor<X>& v) override {return v.visit(*this);}
 #define ACCEPT_Z(X) virtual X accept(Visitor<X>&v) = 0;
 #define GENERATE_ACCEPTORS() ACCEPT(llvm::Value*) \
-							 ACCEPT(std::unique_ptr<ASTPayload>)
+							 ACCEPT(std::unique_ptr<ASTPayload>) \
+							 ACCEPT(void)
 
 #define GENERATE_ABSTRCT_FUNCS() ACCEPT_Z(llvm::Value*) \
-								 ACCEPT_Z(std::unique_ptr<ASTPayload>)
+								 ACCEPT_Z(std::unique_ptr<ASTPayload>) \
+								 ACCEPT_Z(void)
 
 
 namespace Vex {
@@ -181,7 +184,7 @@ namespace Vex {
 			std::unique_ptr<ExprAST> to_expr,
 			std::unique_ptr<StatementBlockAST> statement_block) :
 			assign_statement(std::move(assign_statement)), to_expr(std::move(to_expr)),
-			statement_block(std::move(statement_block)) {}
+			by_expr(nullptr), statement_block(std::move(statement_block)) {}
 		ForStatementAST(
 			std::unique_ptr<AssignmentStatementAST> assign_statement,
 			std::unique_ptr<ExprAST> to_expr, std::unique_ptr<ExprAST> by_expr,

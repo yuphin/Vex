@@ -7,6 +7,8 @@ namespace Vex {
 	class Logger {
 		public:
 		static void init();
+		static void set_printer_mode();
+		static void set_default_mode();
 		inline static std::shared_ptr<spdlog::logger>& get_logger() { return s_logger; }
 		private:
 		static std::shared_ptr<spdlog::logger> s_logger;
@@ -16,7 +18,7 @@ namespace Vex {
 
 #define VEX_TRACE(...)    ::Vex::Logger::get_logger()->trace(__VA_ARGS__)
 #ifdef DEBUG
-	#define VEX_INFO(...)     ::Vex::Logger::get_logger()->info(__VA_ARGS__)
+	#define VEX_INFO(...) ::Vex::Logger::get_logger()->info(__VA_ARGS__)
 #else
 	#define VEX_INFO(...)	
 #endif

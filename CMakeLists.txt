@@ -21,6 +21,7 @@ set(SRC_FILES
         src/CodeGen.cpp
         src/ASTChecker.cpp
         src/ASTPayload.cpp
+        src/ASTPrinter.cpp
         src/Parser.y
         src/Scanner.l
         src/Driver.cpp)
@@ -31,6 +32,7 @@ set(HDR_FILES
         src/Visitor.h
         src/CodeGen.h
         src/ASTPayload.h
+        src/ASTPrinter.h
         src/ASTChecker.h
         src/Driver.h)
 

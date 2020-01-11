@@ -39,5 +39,6 @@ class Driver {
 	int opt_level = 0;
 	bool emit_ir = false;
 	bool emit_oc = false;
+	bool emit_ast = false;
 	std::string output_name = "";
 };

@@ -394,7 +394,7 @@ namespace Vex {
 	}
 
 	llvm::Value* CodeGen::cast_according_to(llvm::Value* LHS, llvm::Value* RHS) {
-	
+
 		llvm::Type* l_type, * r_type;
 
 		std::tie(l_type, r_type) = get_underlying_type(LHS, RHS);
@@ -413,7 +413,7 @@ namespace Vex {
 	}
 
 	llvm::Value* CodeGen::cast_according_to_t(llvm::Type* l_type, llvm::Value* RHS) {
-	
+
 		llvm::Type* r_type = get_type(RHS, true);
 
 		VEX_ASSERT(!l_type->isIntegerTy() || !r_type->isDoubleTy(),
@@ -565,14 +565,14 @@ namespace Vex {
 		}
 		auto has_else = (el.else_blk != nullptr);
 		auto condition_type = get_type(condition);
-		llvm::Value* zero_val;
-		if (condition_type->isIntegerTy() && condition_type->getIntegerBitWidth() == 32) {
-			zero_val = llvm::ConstantInt::get(context, llvm::APInt(32, 0, true));
-			condition = create_binary(condition, zero_val, NEQ);
-		} else if (condition_type->isDoubleTy()) {
+		llvm::Value* zero_val=nullptr;
+		if (condition_type->isIntegerTy()) {
+			zero_val = llvm::ConstantInt::get(context,
+				llvm::APInt(condition_type->getIntegerBitWidth(), 0, true));
+		} else {
 			zero_val = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
-			condition = create_binary(condition, zero_val, NEQ);
 		}
+		condition = create_binary(condition, zero_val, NEQ);
 		llvm::Function* enclosing_func = Builder->GetInsertBlock()->getParent();
 		llvm::BasicBlock* then_b = llvm::BasicBlock::Create(context, "then", enclosing_func);
 		llvm::BasicBlock* if_cont = llvm::BasicBlock::Create(context, "if_cont");
@@ -692,10 +692,11 @@ namespace Vex {
 		Builder->SetInsertPoint(test_block);
 		auto while_val = el.while_expr->accept(*this);
 
-		llvm::Value* zero_val;
+		llvm::Value* zero_val = nullptr;
 		auto expr_type = get_type(while_val);
 		if (expr_type->isIntegerTy()) {
-			zero_val = llvm::ConstantInt::get(context, llvm::APInt(32, 0, true));
+			zero_val = llvm::ConstantInt::get(context,
+				llvm::APInt(expr_type->getIntegerBitWidth(), 0, true));
 		} else {
 			zero_val = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
 		}
