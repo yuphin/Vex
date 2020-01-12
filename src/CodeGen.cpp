@@ -84,15 +84,15 @@ namespace Vex {
 			"#include <stdarg.h>\n"
 			"extern int main(void);\n"
 			"void print(const char* format, ...) {"
-			" va_list arglist;"
-			" va_start(arglist, format);"
-			"  vprintf(format, arglist);"
-			" va_end(arglist); }"
+			"va_list arglist;"
+			"va_start(arglist, format);"
+			"vprintf(format, arglist);"
+			"va_end(arglist); }"
 			"void read(const char *format, ...) {"
-			" va_list arglist;"
-			"  va_start(arglist, format);"
-			"   vscanf(format, arglist);"
-			"    va_end(arglist); }"
+			"va_list arglist;"
+			"va_start(arglist, format);"
+			"vscanf(format, arglist);"
+			"va_end(arglist); }"
 			;
 		std::ofstream out("main.cpp");
 		out << input;
@@ -119,32 +119,31 @@ namespace Vex {
 		remove("main.cpp");
 	}
 
+	// Here we assume both l_types and r_types are equal
 	std::pair<llvm::Type*, llvm::Type*> CodeGen::get_underlying_type(llvm::Value* LHS, llvm::Value* RHS) {
 		llvm::Type* l_type = get_type(LHS, true);
 		llvm::Type* r_type = get_type(RHS, true);
 		if (auto v = llvm::dyn_cast<llvm::VectorType>(l_type)) {
-			// Here we assume both l_types and r_types are equal
 			r_type = llvm::cast<llvm::VectorType>(r_type)->getVectorElementType();
 			l_type = v->getVectorElementType();
 		}
 		return std::make_pair(l_type, r_type);
 	}
 
+	// l_type and RHS types might differ in their types(which is the case for this func)
+	// It's up to caller's responsibility to supply the correct types in this func
 	std::pair<llvm::Type*, llvm::Type*> CodeGen::get_underlying_type(llvm::Type* l_type, llvm::Value* RHS) {
 		llvm::Type* r_type = get_type(RHS, true);
 		if (auto v = llvm::dyn_cast<llvm::VectorType>(r_type)) {
-			// l_type and RHS types might differ in their types(which is the case for this func)
-			// It's up to caller's responsibility to supply the correct types in this func
 			r_type = v->getVectorElementType();
 		}
 		return std::make_pair(l_type, r_type);
 	}
 
-
+	// Here we assume both l_types and r_types are equal
 	llvm::Type* CodeGen::get_underlying_type(llvm::Value* LHS) {
 		llvm::Type* l_type = get_type(LHS, true);
 		if (auto v = llvm::dyn_cast<llvm::VectorType>(l_type)) {
-			// Here we assume both l_types and r_types are equal
 			l_type = v->getVectorElementType();
 		}
 		return l_type;
@@ -220,7 +219,7 @@ namespace Vex {
 
 	}
 
-	llvm::Type* CodeGen::get_type(llvm::Value* V, bool underlying_type = false) {
+	llvm::Type* CodeGen::get_type(llvm::Value* V, bool get_ptr_type = false) {
 		llvm::Type* t;
 		if (auto ai = llvm::dyn_cast<llvm::AllocaInst>(V)) {
 			t = ai->getAllocatedType();
@@ -230,7 +229,7 @@ namespace Vex {
 			t = V->getType();
 		}
 
-		if (underlying_type) {
+		if (get_ptr_type) {
 			if (auto ai = llvm::dyn_cast<llvm::PointerType>(t)) {
 				t = ai->getElementType();
 			}
@@ -371,31 +370,6 @@ namespace Vex {
 		}
 	}
 
-	llvm::Value* CodeGen::create_cmp(llvm::Value* LHS, llvm::Value* RHS,
-		llvm::CmpInst::Predicate P, const llvm::Twine& name) {
-		llvm::Type* l_type;
-		llvm::Type* r_type;
-		if (auto ail = llvm::dyn_cast<llvm::AllocaInst>(LHS)) {
-			l_type = ail->getAllocatedType();
-		} else {
-			l_type = LHS->getType();
-		}
-		if (auto air = llvm::dyn_cast<llvm::AllocaInst>(RHS)) {
-			r_type = air->getAllocatedType();
-		} else {
-			r_type = RHS->getType();
-		}
-
-		if (l_type->isDoubleTy() || r_type->isDoubleTy()) {
-			return Builder->CreateFCmp(P, LHS, RHS, name);
-		} else {
-			return Builder->CreateICmp(P, LHS, RHS, name);
-		}
-		return nullptr;
-
-	}
-
-
 	llvm::AllocaInst* CodeGen::insert_alloca_to_top(llvm::Function* func,
 		const std::string& var_name, llvm::Type* type) {
 
@@ -470,8 +444,6 @@ namespace Vex {
 	}
 
 	llvm::Value* CodeGen::visit(AssignmentStatementAST& el) {
-		// TODO: proper error checks later
-
 		llvm::Value* rhs_expr = el.expr->accept(*this);
 		if (!rhs_expr) {
 			return nullptr;

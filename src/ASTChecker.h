@@ -5,10 +5,14 @@
 
 namespace Vex {
 
-
+	// An ASTPayload is the main source of communication during AST checking.
 	struct ASTPayload;
 
 	struct ASTChecker : public Visitor<std::unique_ptr<ASTPayload>> {
+		
+		// ASTChecker does semantic checking, type integrity and possible 
+		// optimizations such as dead statement elimination after 'return' statements
+
 		virtual std::unique_ptr<ASTPayload> visit(BaseAST& el) override;
 		virtual std::unique_ptr<ASTPayload> visit(TopAST& el) override;
 		virtual std::unique_ptr<ASTPayload> visit(VariableDeclAST& el) override;

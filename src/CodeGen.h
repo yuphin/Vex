@@ -41,27 +41,38 @@ namespace Vex {
 		virtual llvm::Value* visit(StatementBlockAST& el) override;
 
 		private:
+		// Utility functions
+
+		// Gets the underlying type of an AllocaInst, GlobalValue or optionally a pointer type 
+		llvm::Type* get_type(llvm::Value* V, bool get_ptr_type);
+
+		// Gets the underlying type of an AllocaInst, GlobalValue, Pointer or a VectorTy
+		// This calls 'get_type(...)' internally
 		std::pair<llvm::Type*, llvm::Type*> get_underlying_type(llvm::Value*, llvm::Value*);
 		std::pair<llvm::Type*, llvm::Type*> get_underlying_type(llvm::Type*, llvm::Value*);
 		llvm::Type* get_underlying_type(llvm::Value*);
+		// Gets the element pointer of a vector
 		llvm::Value* get_addr(llvm::Value* v, int index);
+		// Symbol lookup from the symbol table
 		llvm::Value* symbol_lookup(const std::string& name);
+		// Returns an LLVM type according to some V type
 		llvm::Type* lookup_type(const Type& type);
 		llvm::Type* lookup_type(int type);
-		llvm::Type* get_type(llvm::Value* V, bool);
+		// Create a binary op instruction 
 		llvm::Value* create_binary(llvm::Value* LHS, llvm::Value* RHS, int op, const llvm::Twine&);
+		// Cast values according to a larger type
 		std::pair<llvm::Value*, llvm::Value*> cast_values(llvm::Value* LHS, llvm::Value* RHS);
-		llvm::Value* create_cmp(llvm::Value* LHS, llvm::Value* RHS, llvm::CmpInst::Predicate P, const llvm::Twine& name = "");
+		// Create an alloca instruction(a stack variable) to the top of the function
 		llvm::AllocaInst* insert_alloca_to_top(llvm::Function* func,
 			const std::string& var_name, llvm::Type* type);
 		llvm::Value* cast_according_to(llvm::Value* LHS, llvm::Value* RHS);
-
 		// l_type and RHS types might differ in their types(which is the case for this func)
 		// It's up to caller's responsibility to supply the correct types in this func
 		llvm::Value* cast_according_to_t(llvm::Type* l_type, llvm::Value* RHS);
-
+		// Check if the RHS type should be casted without having to load from memory
 		bool should_cast(llvm::Type* l_type, llvm::Value* RHS);
 		llvm::Constant* prepare_io(const std::string& str);
+		// Utility method for creating constant int value
 		llvm::Value* create_int(const int& val, bool should_decrement);
 
 	};

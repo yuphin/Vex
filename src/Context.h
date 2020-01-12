@@ -33,9 +33,10 @@
 
 namespace Vex {
 
+	// This header containts all required LLVM related headers and structs for
+	// code generation
 
-
-
+	// A function context is created upon entering a function
 	struct FuncContext {
 		std::unordered_map<std::string, llvm::AllocaInst*> sym_tab;
 		llvm::AllocaInst* return_val = nullptr;
@@ -43,12 +44,21 @@ namespace Vex {
 		bool in_params = false;
 
 	};
+	
+	// A global context is unique to a translation unit
 	struct GlobalContext {
 		std::stack<FuncContext> call_stack;
 		std::unordered_map<std::string, llvm::Value* > sym_tab;
 		bool in_global_namespace = true;
+
+		// TODO: Move these state values inside FuncContext since we may want to
+		// compile asynchronously
+
+		// Is in statement?
 		bool in_statement = false;
+		// Are we evaluation an l-value?
 		bool lhs_eval = false;
+		// Are we invoking a function? If so set arg_type(See CodeGen::InvocationAST)
 		bool invoke_func = false;
 		llvm::Type* func_arg_type;
 
