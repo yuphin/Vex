@@ -4,7 +4,6 @@ namespace Vex {
 	bool ASTPayload::operator<(const ASTPayload& rhs) {
 		auto lhs_t = (*this).get_basic_type();
 		auto rhs_t = rhs.get_basic_type();
-
 		return lhs_t < rhs_t;
 	}
 

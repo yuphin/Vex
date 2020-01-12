@@ -17,7 +17,6 @@ namespace Vex {
 	}
 
 	std::unique_ptr<ASTPayload> ASTChecker::visit(VariableDeclAST& el) {
-
 		if (!in_func && el.var_type->is_array && !*el.var_type->array_size) {
 			AST_ERROR("Vector type cannot be empty outside the function : {0}", el.location);
 
@@ -116,7 +115,6 @@ namespace Vex {
 	}
 
 	std::unique_ptr<ASTPayload> ASTChecker::visit(IntNumAST& el) {
-
 		return std::make_unique<ASTPayload>(INT, el.location);
 	}
 
@@ -169,7 +167,6 @@ namespace Vex {
 
 	std::unique_ptr<ASTPayload> ASTChecker::visit(IfStatementAST& el) {
 		el.if_expr->accept(*this);
-
 		auto then_has_return = false;
 		for (auto& expr : el.then_blk->statement_list) {
 			if (dynamic_cast<ReturnStatementAST*>(expr.get())) {

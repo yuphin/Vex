@@ -51,9 +51,6 @@ namespace Vex {
 		std::string err;
 		auto target_triple = llvm::sys::getDefaultTargetTriple();
 		auto target = llvm::TargetRegistry::lookupTarget(target_triple, err);
-		// Print an error and exit if we couldn't find the requested target.
-		// This generally occurs if we've forgotten to initialise the
-		// TargetRegistry or we have a bogus target triple.
 		VEX_ASSERT(target, err);
 		auto cpu = "generic";
 		auto features = "";
@@ -77,7 +74,6 @@ namespace Vex {
 	}
 
 	void CodeGen::emit_executable(const std::string& filename) {
-
 		emit_object_code();
 		auto input =
 			"#include <stdio.h>\n"
@@ -245,7 +241,6 @@ namespace Vex {
 
 	llvm::Value* CodeGen::create_binary(llvm::Value* LHS, llvm::Value* RHS, int op, const llvm::Twine& name = "") {
 		llvm::Type* l_type = get_underlying_type(LHS);
-
 		switch (op) {
 		case EQ: {
 			if (l_type->isIntegerTy()) {
@@ -381,7 +376,6 @@ namespace Vex {
 	}
 
 	llvm::Value* CodeGen::cast_according_to(llvm::Value* LHS, llvm::Value* RHS) {
-
 		llvm::Type* l_type, * r_type;
 
 		std::tie(l_type, r_type) = get_underlying_type(LHS, RHS);
@@ -475,7 +469,6 @@ namespace Vex {
 		}
 
 		if (unit_context->in_statement) {
-
 			if (!return_br) {
 				return_br = llvm::BasicBlock::Create(context, "return_label");
 			}
@@ -849,7 +842,6 @@ namespace Vex {
 	}
 
 	llvm::Value* CodeGen::visit(BinaryExprAST& el) {
-
 		if (el.binop != AND && el.binop != OR) {
 			llvm::Value* L = el.LHS->accept(*this);
 			llvm::Value* R = el.RHS->accept(*this);
@@ -880,7 +872,6 @@ namespace Vex {
 
 			// Check if the first expr is not equal to 0 
 			auto not_zero_l = create_binary(LHS, zero_val_l, NEQ);
-
 			Builder->CreateCondBr(not_zero_l, first_block, second_block);
 			Builder->SetInsertPoint(first_block);
 
@@ -925,7 +916,6 @@ namespace Vex {
 
 			// Check if the first expr is not equal to 0 
 			auto zero_l = create_binary(LHS, zero_val_l, EQ);
-
 			Builder->CreateCondBr(zero_l, first_block, second_block);
 			Builder->SetInsertPoint(first_block);
 
