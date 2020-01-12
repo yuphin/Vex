@@ -70,6 +70,7 @@ blank [ \t\r]
 "endfunc"  return yy::parser::make_ENDFUNC(loc); 
 "int"      return yy::parser::make_INT(loc); 
 "real"     return yy::parser::make_REAL(loc); 
+"void"     return yy::parser::make_VOID(loc);
 "return"   return yy::parser::make_RETURN(loc); 
 "to"       return yy::parser::make_TO(loc); 
 "by"       return yy::parser::make_BY(loc); 

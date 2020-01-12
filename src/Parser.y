@@ -52,6 +52,7 @@
   ENDFUNC "endfunc"
   INT "int"
   REAL "real"
+  VOID "void"
   RETURN "return"
   TO "to"
   BY "by"
@@ -81,6 +82,7 @@
 
 %type <std::unique_ptr<Type>> type
 %type <obj_type> basic_type
+%type <obj_type> void_type
 %type <std::unique_ptr<unsigned int>> vector_extension
 %type <std::unique_ptr<StatementBlockAST>> statement_list
 %type <std::unique_ptr<TopAST>> unit program
@@ -131,6 +133,9 @@
 
   func_prototype: basic_type FUNC ID "(" parameter_list ")" {
                         $$ = std::make_unique<FunctionDeclAST>(std::move($3),drv.location,$1,std::move(*$5));
+                  }
+                  | void_type FUNC ID "(" parameter_list ")" {
+                        $$ = std::make_unique<FunctionDeclAST>(std::move($3),drv.location,$1,std::move(*$5));
   } ;
 
   function_body: declaration_list statement_list {
@@ -171,7 +176,6 @@
                         $$ = std::move($1); 
                         $$->emplace_back(std::make_unique<VariableDeclAST>(std::move($3),drv.location,std::move($5)));
                         // std::cout << "Contents(2) of $$ is : " << $$->size() << std::endl; 
-
                 }
                 | error {
                        yyerrok;
@@ -187,17 +191,18 @@
                       }else{
                         $$ = std::make_unique<Type>($1);
                       }
-                        
-
   } ;
 
-  basic_type: INT {
+  basic_type:  INT {
                         $$ = Vex::INT;
              }
              | REAL {
                         $$ = Vex::REAL;
-                        
   } ;
+
+  void_type : VOID {
+                       $$ = Vex::VOID_TY;
+  }
 
   vector_extension: "[" INT_NUM "]" {
                         $$ = std::make_unique<unsigned int>($2); 
@@ -248,6 +253,9 @@
             }
             | while_statement {
                        $$ = std::move($1);
+            }  
+            | ID "(" argument_list ")" {
+                       $$ = std::make_unique<InvocationAST>(std::move($1),std::move(*$3),drv.location);
   } ;
   
   assignment_statement: variable ":=" expression {
@@ -311,7 +319,7 @@
                        $$ = std::make_unique<BinaryExprAST>(std::move($1),DIV,std::move($3),drv.location);
        }
        | term MOD unary {
-                       $$ = std::make_unique<BinaryExprAST>(std::move($1),MOD,std::move($3),drv.location);
+                       $$ = std::make_unique<BinaryExprAST>(std::move($1),MOD,std::move($3), drv.location);
        }
        | term DIV unary {
                        $$ = std::make_unique<BinaryExprAST>(std::move($1),IDIV,std::move($3),drv.location);
@@ -329,7 +337,7 @@
                        $$ = std::move($1);
          } 
          | ID "(" argument_list ")" {
-                       $$ = std::make_unique<InvocationAST>(std::move($1),std::move(*$3));
+                       $$ = std::make_unique<InvocationAST>(std::move($1),std::move(*$3), drv.location);
          }
          | INT_NUM {
                        $$ = std::make_unique<IntNumAST>($1,drv.location);

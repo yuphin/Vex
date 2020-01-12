@@ -106,7 +106,8 @@ namespace Vex {
 					AST_ERROR("Array index out of range : {0}", el.location);
 				}
 			} else {
-				AST_ERROR("Index cannot be other than unsigned integer for \"{0}\": {1}", el.name, el.location);
+				AST_ERROR("Index cannot be other than unsigned integer for \"{0}\": {1}", 
+					el.name, el.location);
 			}
 
 
@@ -130,14 +131,25 @@ namespace Vex {
 			return nullptr;
 		}
 		if (LHS->get_basic_type() < RHS->get_basic_type()) {
-			AST_ERROR("Cannot convert from 'real' to 'int' type : {0}", LHS->loc);
+			AST_ERROR("Cannot narrow types: {0}", LHS->loc);
+		} else if (RHS->get_basic_type() == VOID_TY) {
+			AST_ERROR("Cannot assign void type : {0}", LHS->loc);
 		}
 
 		return nullptr;
 	}
 
 	std::unique_ptr<ASTPayload> ASTChecker::visit(ReturnStatementAST& el) {
-		el.expr->accept(*this);
+		auto ret_expr = el.expr->accept(*this);
+		if (func_type == VOID_TY) {
+			AST_ERROR("Void type cannot return : {0}", ret_expr->loc);
+		}
+
+		if ((ret_expr->ty_info && func_type != ret_expr->ty_info->s_type) ||
+			func_type != ret_expr->s_type) {
+			AST_ERROR("Return type and function type don't match or cannot narrow type : {0}",
+				el.location);
+		}
 		return nullptr;
 	}
 
@@ -199,7 +211,8 @@ namespace Vex {
 	}
 
 	std::unique_ptr<ASTPayload> ASTChecker::visit(InvocationAST& el) {
-		VEX_ASSERT(func_tab[el.callee], "Unknown func name \"{0}\" : {1}", el.callee, el.location);
+		VEX_ASSERT(func_tab[el.callee], "Unknown func name \"{0}\" : {1}", 
+			el.callee, el.location);
 		FuncPayload* func_info = func_tab[el.callee].get();
 		auto counter = 0;
 		for (auto& arg : el.args) {

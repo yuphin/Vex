@@ -20,7 +20,6 @@
 								 ACCEPT_Z(void)
 namespace Vex {
 	struct ASTPayload;
-
 	// Type structure for holding variable types
 	struct Type {
 
@@ -126,19 +125,21 @@ namespace Vex {
 		GENERATE_ACCEPTORS()
 	};
 
-	// For function calls
-	struct InvocationAST : public ExprAST {
-		std::string callee;
-		std::vector<std::unique_ptr<ExprAST>> args;
-
-
-		InvocationAST(std::string&& callee, std::vector<std::unique_ptr<ExprAST>> args)
-			: callee(std::move(callee)), args(std::move(args)) {}
+	// Base statement node
+	struct StatementAST : public BaseAST {
 		GENERATE_ACCEPTORS()
 	};
 
-	// Base statement node
-	struct StatementAST : public BaseAST {
+
+	// For function calls
+	struct InvocationAST : public StatementAST, public ExprAST {
+		std::string callee;
+		std::vector<std::unique_ptr<ExprAST>> args;
+		yy::location location;
+
+		InvocationAST(std::string&& callee, 
+			std::vector<std::unique_ptr<ExprAST>> args, const yy::location& loc)
+			: callee(std::move(callee)), args(std::move(args)), location(loc) {}
 		GENERATE_ACCEPTORS()
 	};
 

@@ -206,6 +206,9 @@ namespace Vex {
 
 	llvm::Type* CodeGen::lookup_type(int type) {
 		switch (type) {
+		case obj_type::VOID_TY: {
+			return llvm::Type::getVoidTy(context);
+		}
 		case obj_type::INT: {
 			return llvm::Type::getInt32Ty(context);
 
@@ -460,6 +463,9 @@ namespace Vex {
 	}
 
 	llvm::Value* CodeGen::visit(ReturnStatementAST& el) {
+		if (!el.expr) {
+			return nullptr;
+		}
 		auto& return_val = unit_context->call_stack.top().return_val;
 		auto& return_br = unit_context->call_stack.top().return_br;
 		auto enclosing_func = Builder->GetInsertBlock()->getParent();
@@ -781,7 +787,9 @@ namespace Vex {
 		// Create a new basic block to start insertion into.
 		llvm::BasicBlock* bb = llvm::BasicBlock::Create(context, "entry", func);
 		Builder->SetInsertPoint(bb);
-		unit_context->call_stack.top().return_val = insert_alloca_to_top(func, "return_val", func->getReturnType());
+		if (!func->getReturnType()->isVoidTy()) {
+			unit_context->call_stack.top().return_val = insert_alloca_to_top(func, "return_val", func->getReturnType());
+		}
 
 		// Record the function arguments in the symbol map.
 		for (auto& arg : func->args()) {
@@ -799,6 +807,9 @@ namespace Vex {
 			auto val = Builder->CreateLoad(Builder->GetInsertBlock()->getParent()->getReturnType()
 				, return_val, "retval");
 			Builder->CreateRet(val);
+		}
+		if (func->getReturnType()->isVoidTy()) {
+			Builder->CreateRet(nullptr);
 		}
 		llvm::verifyFunction(*func);
 		fpm->run(*func);

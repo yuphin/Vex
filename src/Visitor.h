@@ -3,7 +3,7 @@
 
 namespace Vex {
 	// Variable type
-	enum obj_type { INT = 0, REAL = 1 };
+	enum obj_type { VOID_TY = 0, INT = 1, REAL = 2 };
 
 	// Current binary operators
 	enum bin_op { EQ, NEQ, LT, GT, LTE, GTE, AND, OR, NOT, ADD, SUB, MULT, DIV, IDIV, MOD };
