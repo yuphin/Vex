@@ -98,18 +98,17 @@ namespace Vex {
 		}
 
 		if (el.indexExpr) {
+			auto idx_ty = el.indexExpr->accept(*this);
+			AST_ASSERT(idx_ty->get_basic_type() == INT,
+				"Index cannot be other than unsigned integer for \"{0}\": {1}",
+				el.name, el.location);
 			if (auto int_expr = dynamic_cast<IntNumAST*>(el.indexExpr.get())) {
 				if (int_expr->val < 1) {
 					AST_ERROR("Index expr is <1 : {0}", el.location);
 				} else if (*var_type->array_size && int_expr->val > * var_type->array_size) {
 					AST_ERROR("Array index out of range : {0}", el.location);
 				}
-			} else {
-				AST_ERROR("Index cannot be other than unsigned integer for \"{0}\": {1}", 
-					el.name, el.location);
 			}
-
-
 		}
 		return ret_val;
 	}
@@ -208,7 +207,7 @@ namespace Vex {
 	}
 
 	std::unique_ptr<ASTPayload> ASTChecker::visit(InvocationAST& el) {
-		VEX_ASSERT(func_tab[el.callee], "Unknown func name \"{0}\" : {1}", 
+		VEX_ASSERT(func_tab[el.callee], "Unknown func name \"{0}\" : {1}",
 			el.callee, el.location);
 		FuncPayload* func_info = func_tab[el.callee].get();
 		auto counter = 0;

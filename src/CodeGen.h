@@ -53,6 +53,7 @@ namespace Vex {
 		llvm::Type* get_underlying_type(llvm::Value*);
 		// Gets the element pointer of a vector
 		llvm::Value* get_addr(llvm::Value* v, int index);
+		llvm::Value* get_addr(llvm::Value* v, llvm::Value* index);
 		// Symbol lookup from the symbol table
 		llvm::Value* symbol_lookup(const std::string& name);
 		// Returns an LLVM type according to some V type

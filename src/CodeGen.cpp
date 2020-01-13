@@ -158,6 +158,24 @@ namespace Vex {
 		return Builder->CreateGEP(v, index_vals, "vector_cell");
 	}
 
+	llvm::Value* CodeGen::get_addr(llvm::Value* v, llvm::Value* index) {
+		std::vector<llvm::Value*> index_vals;
+		// Create '-1' constant LLVM value
+		auto minus_one = create_int(-1, false);
+		// Decrement the index since all indices start with 1 instead of 0
+		index = create_binary(index, minus_one, ADD, "var_index_decrement");
+		if (llvm::cast<llvm::PointerType>(v->getType())->getElementType()->isVectorTy()) {
+			index_vals = {
+				llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(context)),
+				index
+			};
+		} else {
+			index_vals = { index };
+		}
+		return Builder->CreateGEP(v, index_vals, "vector_cell");
+
+	}
+
 	llvm::Value* CodeGen::symbol_lookup(const std::string& name) {
 		llvm::Value* v = nullptr;
 		if (!unit_context->call_stack.empty()) {
@@ -641,10 +659,11 @@ namespace Vex {
 		}
 		// Example : Lvalue-> Int, ByExpr-> Double then we want to do double+double
 		auto add_val = create_binary(casted.first, casted.second, ADD);
-		// We need to load Lvalue
-		auto l_value = symbol_lookup(el.assign_statement->lvalue->name);
+		// We need to load Lvalue, so set lhs_eval to true and load
+		unit_context->lhs_eval = true;
+		auto l_value = el.assign_statement->lvalue->accept(*this);
+		unit_context->lhs_eval = false;
 		auto l_type = get_type(l_value);
-		Builder->CreateLoad(l_type, l_value, l_value->getName());
 		// Before storing to Lvalue, we need to convert back to Lvalue's type regardless
 		auto casted_add = cast_according_to(l_value, add_val);
 		Builder->CreateStore(casted_add, l_value);
@@ -976,7 +995,19 @@ namespace Vex {
 			if (type->getElementType()->isPointerTy()) {
 				v = Builder->CreateLoad(type->getElementType(), v, el.name);
 			}
-			v = get_addr(v, static_cast<IntNumAST*>(el.indexExpr.get())->val);
+			if (auto int_expr = dynamic_cast<IntNumAST*>(el.indexExpr.get())) {
+				v = get_addr(v, int_expr->val);
+			} else {
+				// We are evaluating a non-literal expression
+
+				// If we are currently evaluating lhs value, save the old result
+				auto prev_lhs_eval = unit_context->lhs_eval;
+				unit_context->lhs_eval = false;
+				auto var_value = el.indexExpr->accept(*this);
+				v = get_addr(v, var_value);
+				// Restore the previous result
+				unit_context->lhs_eval = prev_lhs_eval;
+			}
 		} else if (unit_context->invoke_func &&
 			llvm::cast<llvm::PointerType>(v->getType())->getElementType()->isVectorTy()) {
 			// A Vector without an index, pass the first index as pointer
