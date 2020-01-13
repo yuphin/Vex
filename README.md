@@ -3,7 +3,7 @@
 Vex is a compiler for V language written with flex, bison and LLVM. 
 It compiles to MIPS, ARM, x86-64, RISC-V and many other architectures.
 
-V language is mainly designed for vectorization (and possibly parallelization) in mind. Therefore, it's performance
+V language is mainly designed for vectorization (and possibly parallelization) in mind. Therefore, its performance
 is expected to be on-par with popular compilers like clang and gcc.
 
 ## An example V program
