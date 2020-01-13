@@ -1,4 +1,4 @@
-int func main()
+real func main()
     var var1: int;
     var var2: real;
     var1 := 4;

@@ -1,8 +1,8 @@
 
-int func main(main_arg:real)
+real func main(main_arg:real)
     var var1 : real;
-    var var2 : int; 
-    var var3: int;
+    var var2 : real; 
+    var var3: real;
     var1 := -5;
     var2 := 0;
 

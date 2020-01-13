@@ -84,7 +84,7 @@ namespace Vex {
 	}
 
 	std::unique_ptr<ASTPayload> ASTChecker::visit(UnaryExprAST& el) {
-		return el.accept(*this);
+		return el.LHS->accept(*this);
 	}
 
 	std::unique_ptr<ASTPayload> ASTChecker::visit(VariableAST& el) {
@@ -142,10 +142,10 @@ namespace Vex {
 			AST_ERROR("Void type cannot return : {0}", ret_expr->loc);
 		}
 
-		if ((ret_expr->ty_info && func_type != ret_expr->ty_info->s_type) ||
-			func_type != ret_expr->s_type) {
+		if ((ret_expr->ty_info && func_type < ret_expr->ty_info->s_type) ||
+			func_type < ret_expr->s_type) {
 			AST_ERROR("Return type and function type don't match or cannot narrow type : {0}",
-				el.location);
+				el.expr->location);
 		}
 		return nullptr;
 	}

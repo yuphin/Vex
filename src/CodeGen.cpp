@@ -119,38 +119,39 @@ namespace Vex {
 	std::pair<llvm::Type*, llvm::Type*> CodeGen::get_underlying_type(llvm::Value* LHS, llvm::Value* RHS) {
 		llvm::Type* l_type = get_type(LHS, true);
 		llvm::Type* r_type = get_type(RHS, true);
-		if (auto v = llvm::dyn_cast<llvm::VectorType>(l_type)) {
-			r_type = llvm::cast<llvm::VectorType>(r_type)->getVectorElementType();
-			l_type = v->getVectorElementType();
+		if (l_type->isVectorTy()) {
+			r_type = r_type->getVectorElementType();
+			l_type = l_type->getVectorElementType();
 		}
 		return std::make_pair(l_type, r_type);
 	}
 
-	// l_type and RHS types might differ in their types(which is the case for this func)
-	// It's up to caller's responsibility to supply the correct types in this func
+	// Here l_type and RHS value's type may not be equal
 	std::pair<llvm::Type*, llvm::Type*> CodeGen::get_underlying_type(llvm::Type* l_type, llvm::Value* RHS) {
 		llvm::Type* r_type = get_type(RHS, true);
-		if (auto v = llvm::dyn_cast<llvm::VectorType>(r_type)) {
-			r_type = v->getVectorElementType();
+		if (r_type->isVectorTy()) {
+			r_type = r_type->getVectorElementType();
+		}
+		if (l_type->isVectorTy()) {
+			l_type = l_type->getVectorElementType();
 		}
 		return std::make_pair(l_type, r_type);
 	}
 
-	// Here we assume both l_types and r_types are equal
 	llvm::Type* CodeGen::get_underlying_type(llvm::Value* LHS) {
 		llvm::Type* l_type = get_type(LHS, true);
-		if (auto v = llvm::dyn_cast<llvm::VectorType>(l_type)) {
-			l_type = v->getVectorElementType();
+		if (l_type->isVectorTy()) {
+			l_type = l_type->getVectorElementType();
 		}
 		return l_type;
 	}
 
 	llvm::Value* CodeGen::get_addr(llvm::Value* v, int index) {
 		std::vector<llvm::Value*> index_vals;
-		if (llvm::cast<llvm::PointerType>(v->getType())->getElementType()->isVectorTy()) {
+		if (v->getType()->getPointerElementType()->isVectorTy()) {
 			index_vals = {
-				llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(context)),
-				create_int(index, true)
+			llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(context)),
+			create_int(index, true)
 			};
 		} else {
 			index_vals = { create_int(index, true) };
@@ -164,7 +165,7 @@ namespace Vex {
 		auto minus_one = create_int(-1, false);
 		// Decrement the index since all indices start with 1 instead of 0
 		index = create_binary(index, minus_one, ADD, "var_index_decrement");
-		if (llvm::cast<llvm::PointerType>(v->getType())->getElementType()->isVectorTy()) {
+		if (v->getType()->getPointerElementType()->isVectorTy()) {
 			index_vals = {
 				llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(context)),
 				index
@@ -246,14 +247,9 @@ namespace Vex {
 			t = V->getType();
 		}
 
-		if (get_ptr_type) {
-			if (auto ai = llvm::dyn_cast<llvm::PointerType>(t)) {
-				t = ai->getElementType();
-			}
-
-
+		if (get_ptr_type && t->isPointerTy()) {
+			t = t->getPointerElementType();
 		}
-
 		return t;
 	}
 
@@ -982,19 +978,14 @@ namespace Vex {
 
 	llvm::Value* CodeGen::visit(VariableAST& el) {
 		llvm::Value* v = symbol_lookup(el.name);
-		if (unit_context->invoke_func && should_cast(unit_context->func_arg_type, v)) {
-			auto enclosing_func = Builder->GetInsertBlock()->getParent();
-			v = Builder->CreateLoad(get_type(v, true), v);
-			auto casted = cast_according_to_t(unit_context->func_arg_type, v);
-			v = insert_alloca_to_top(enclosing_func, "", casted->getType());
-			Builder->CreateStore(casted, v);
-		}
 		if (el.indexExpr) {
-			auto type = llvm::cast<llvm::PointerType>(v->getType());
-			if (type->getElementType()->isPointerTy()) {
-				v = Builder->CreateLoad(type->getElementType(), v, el.name);
+			// If we have an alloca of a pointer, we need to load it
+			if (v->getType()->getPointerElementType()->isPointerTy()) {
+				// We do not want underlying type because variable might be a function param
+				v = Builder->CreateLoad(get_type(v, false), v, el.name);
 			}
 			if (auto int_expr = dynamic_cast<IntNumAST*>(el.indexExpr.get())) {
+				// Index expr is a literal
 				v = get_addr(v, int_expr->val);
 			} else {
 				// We are evaluating a non-literal expression
@@ -1007,32 +998,45 @@ namespace Vex {
 				// Restore the previous result
 				unit_context->lhs_eval = prev_lhs_eval;
 			}
-		} else if (unit_context->invoke_func &&
-			llvm::cast<llvm::PointerType>(v->getType())->getElementType()->isVectorTy()) {
-			// A Vector without an index, pass the first index as pointer
+		} else if (v->getType()->getPointerElementType()->isVectorTy() && 
+			unit_context->invoke_func) {
+			auto enclosing_func = Builder->GetInsertBlock()->getParent();
+			v = Builder->CreateLoad(get_type(v, false), v);
+			auto casted = cast_according_to_t(
+				unit_context->func_arg_type->getPointerElementType(), v);
+			v = insert_alloca_to_top(enclosing_func, "", casted->getType());
+			Builder->CreateStore(casted, v);
+			// Pass the first index as pointer
 			v = get_addr(v, 1);
 			return v;
-		}
-		if (unit_context->lhs_eval) {
+		} else if (v->getType()->getPointerElementType()->isPointerTy() &&
+			unit_context->invoke_func) {
+			// If v is a pointer to a pointer type, that means we already have a pointer inside our func
+			// Therefore we don't need to allocate
+			v = Builder->CreateLoad(get_type(v, false), v);
+			v = get_addr(v, 1);
 			return v;
-		} else {
-			auto type = llvm::cast<llvm::PointerType>(v->getType());
-			return Builder->CreateLoad(type->getElementType(), v, el.name);
+		} else if (unit_context->invoke_func) {
+			// Passing first class type to a function
+			v = Builder->CreateLoad(get_type(v, true), v);
+			auto casted = cast_according_to_t(
+				unit_context->func_arg_type, v);
+			Builder->CreateStore(casted, v);
 		}
+		return unit_context->lhs_eval ? v :
+			Builder->CreateLoad(get_type(v, true), v, el.name);
 	}
 
 	llvm::Value* CodeGen::visit(InvocationAST& el) {
 		unit_context->invoke_func = true;
 		llvm::Function* callee = curr_module->getFunction(el.callee);
 		std::vector<llvm::Value*> args_vector;
-		for (unsigned i = 0, e = el.args.size(); i != e; ++i) {
-			unit_context->func_arg_type = callee->getParamByValType(i);
+		for (unsigned int i = 0; i < el.args.size(); ++i) {
+			unit_context->func_arg_type = callee->getFunctionType()->getParamType(i);
 			args_vector.push_back(el.args[i]->accept(*this));
-			if (!args_vector.back())
-				return nullptr;
 		}
 		unit_context->invoke_func = false;
-		return Builder->CreateCall(callee, args_vector, "callfunc");
+		return Builder->CreateCall(callee, args_vector, callee->getReturnType()->isVoidTy() ? "" : "callfunc");
 	}
 
 	llvm::Value* CodeGen::visit(StatementAST& el) {
