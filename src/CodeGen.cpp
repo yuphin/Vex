@@ -663,7 +663,6 @@ namespace Vex {
 		unit_context->lhs_eval = true;
 		auto l_value = el.assign_statement->lvalue->accept(*this);
 		unit_context->lhs_eval = false;
-		auto l_type = get_type(l_value);
 		// Before storing to Lvalue, we need to convert back to Lvalue's type regardless
 		auto casted_add = cast_according_to(l_value, add_val);
 		Builder->CreateStore(casted_add, l_value);
