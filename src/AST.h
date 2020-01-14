@@ -125,6 +125,20 @@ namespace Vex {
 		GENERATE_ACCEPTORS()
 	};
 
+	struct StringLiteralAST : public ExprAST {
+
+
+		std::string val;
+		StringLiteralAST(std::string val, yy::location& location) :
+			ExprAST(location), val(std::move(val)) {
+		}
+		StringLiteralAST(std::string val) : val(std::move(val)) {
+			std::cout << "Str val is: " << this->val << std::endl;
+		}
+		GENERATE_ACCEPTORS()
+	};
+
+
 	// Base statement node
 	struct StatementAST : public BaseAST {
 		GENERATE_ACCEPTORS()

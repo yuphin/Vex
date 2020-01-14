@@ -80,6 +80,11 @@ namespace Vex {
 			get_alignment(indent_counter), el.val);
 	}
 
+	void ASTPrinter::visit(StringLiteralAST& el) {
+		VEX_TRACE("{0}-Literal : {1}",
+			get_alignment(indent_counter), el.val);
+	}
+
 	void ASTPrinter::visit(InvocationAST& el) {
 		VEX_TRACE("{0}-Func call {1}",
 			get_alignment(indent_counter), el.callee);

@@ -264,6 +264,10 @@ namespace Vex {
 		return nullptr;
 	}
 
+	std::unique_ptr<ASTPayload> ASTChecker::visit(StringLiteralAST& el) {
+		return std::unique_ptr<ASTPayload>();
+	}
+
 	bool ASTChecker::get_err() {
 		return err;
 	}

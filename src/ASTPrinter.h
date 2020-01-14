@@ -28,6 +28,7 @@ namespace Vex {
 		virtual void visit(IfStatementAST& el) override;
 		virtual void visit(ForStatementAST& el) override;
 		virtual void visit(WhileStatementAST& el) override;
+		virtual void visit(StringLiteralAST& el) override;
 
 		private:
 		int indent_counter = 0;

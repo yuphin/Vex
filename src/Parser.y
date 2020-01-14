@@ -75,6 +75,7 @@
 ;
 
 %token <std::string> ID "identifier"
+%token <std::string> STR "string_literal"
 %token <double> DBL_NUM "fp_number"
 %token <int> INT_NUM "int_number"
 
@@ -100,7 +101,7 @@
 %type <std::unique_ptr<IfStatementAST>> if_statement
 %type <std::unique_ptr<WhileStatementAST>> while_statement
 %type <std::unique_ptr<VariableAST>> variable
-%type <std::unique_ptr<ExprAST>> lexpression expression term unary factor 
+%type <std::unique_ptr<ExprAST>> lexpression expression term unary factor string_literal 
 %type <std::unique_ptr<std::vector<std::unique_ptr<ExprAST>>>> expression_list argument_list 
 %type <std::unique_ptr<std::vector<std::unique_ptr<ExprAST>>>> print_expression
 %type <std::unique_ptr<std::vector<std::unique_ptr<VariableAST>>>> read_expression
@@ -309,6 +310,10 @@
                        $$ = std::make_unique<BinaryExprAST>(std::move($1),SUB,std::move($3),drv.location);
   } ;
 
+  string_literal : STR {
+                       $$ = std::make_unique<StringLiteralAST>(std::move($1));
+  } ;
+
   term: unary {
                        $$ = std::move($1);
        }
@@ -399,6 +404,10 @@
   print_expression: expression {
                         $$ = std::make_unique<std::vector<std::unique_ptr<ExprAST>>>();
                         $$->emplace_back(std::move($1));
+                   }
+                   | string_literal {
+                         $$ = std::make_unique<std::vector<std::unique_ptr<ExprAST>>>();
+                         $$->emplace_back(std::move($1));
                    }
                    | print_expression "," expression {
                         $$ = std::move($1);

@@ -27,6 +27,7 @@ namespace Vex {
 	struct VariableAST;
 	struct IntNumAST;
 	struct FloatingNumAST;
+	struct StringLiteralAST;
 	struct InvocationAST;
 	// Statements
 	struct StatementBlockAST;
@@ -55,6 +56,7 @@ namespace Vex {
 		virtual T visit(VariableAST& el) = 0;
 		virtual T visit(IntNumAST& el) = 0;
 		virtual T visit(FloatingNumAST& el) = 0;
+		virtual T visit(StringLiteralAST& el) = 0;
 		virtual T visit(InvocationAST& el) = 0;
 		virtual T visit(StatementBlockAST& el) = 0;
 		virtual T visit(StatementAST& el) = 0;

@@ -35,6 +35,7 @@ namespace Vex {
 		virtual std::unique_ptr<ASTPayload> visit(InvocationAST& el) override;
 		virtual std::unique_ptr<ASTPayload> visit(StatementAST& el) override;
 		virtual std::unique_ptr<ASTPayload> visit(StatementBlockAST& el) override;
+		virtual std::unique_ptr<ASTPayload> visit(StringLiteralAST& el) override;
 		bool get_err();
 		private:
 		struct FuncPayload {

@@ -507,8 +507,11 @@ namespace Vex {
 			auto expr = el.print_exprs[i]->accept(*this);
 			if (expr->getType()->isDoubleTy()) {
 				ss << "%lf ";
-			} else {
+			} else if(expr->getType()->isIntegerTy()){
 				ss << "%d ";
+			} else {
+				// Then it's a string literal type
+				ss << "%s";
 			}
 			vals.push_back(expr);
 
@@ -1049,5 +1052,10 @@ namespace Vex {
 			val = stat->accept(*this);
 		}
 		return val;
+	}
+	llvm::Value* CodeGen::visit(StringLiteralAST& el) {
+		// Remove double quotes
+		el.val.erase(remove(el.val.begin(), el.val.end(), '\"'), el.val.end());
+		return Builder->CreateGlobalStringPtr(llvm::StringRef(el.val));
 	}
 }

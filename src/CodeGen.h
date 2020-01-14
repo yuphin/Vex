@@ -39,6 +39,7 @@ namespace Vex {
 		virtual llvm::Value* visit(InvocationAST& el) override;
 		virtual llvm::Value* visit(StatementAST& el) override;
 		virtual llvm::Value* visit(StatementBlockAST& el) override;
+		virtual llvm::Value* visit(StringLiteralAST& el) override;
 
 		private:
 		// Utility functions

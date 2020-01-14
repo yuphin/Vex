@@ -29,6 +29,7 @@ using namespace Vex;
 %}
 
 id    [a-zA-Z][a-zA-Z_0-9]*
+str   \"(\\.|[^"\\])*\"
 dbl_num   [0-9]+([.][0-9]+)?([e]([+-])?[0-9]+)?
 int_num   [0-9]+
 blank [ \t\r]
@@ -93,6 +94,7 @@ blank [ \t\r]
 {int_num}  return make_INTNUMBER(yytext,loc);
 {dbl_num}  return make_DBLNUMBER(yytext,loc);
 {id}       return yy::parser::make_ID(yytext,loc);
+{str}      return yy::parser::make_STR(yytext,loc);
 "%".*      { /* Do nothing */}
 .          { throw yy::parser::syntax_error(loc,
                "invalid character: " + std::string(yytext)); }
