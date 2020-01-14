@@ -47,8 +47,8 @@ To build Vex, you need the following:
 * `void` return type for functions
 * `vector` of ints/reals
 
-As indicated in the specs, first class types are passed by value to functions; however vector types are passed by value **if**
-they are casted to different types(eg. int to real), otherwise they are passed by reference. Type narrowing in V is currently forbidden.
+As indicated in the specs, first class types are passed by value to functions; however vector types are passed by value **when**
+the current scope has a declaration of it. That is, vectors which are function parameters are passed by reference.
 
 ## Planned features
 * Arrays
