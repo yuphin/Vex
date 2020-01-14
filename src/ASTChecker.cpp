@@ -80,6 +80,11 @@ namespace Vex {
 		auto LHS = el.LHS->accept(*this);
 		auto RHS = el.RHS->accept(*this);
 
+		if (el.binop == IDIV) {
+			AST_ASSERT(LHS->get_basic_type() == INT && RHS->get_basic_type() == INT,
+				"'div' can only be used between 2 int types {0}", el.location);
+		}
+
 		return std::move(*LHS < *RHS ? RHS : LHS);
 	}
 
