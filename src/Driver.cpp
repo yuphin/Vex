@@ -28,6 +28,22 @@ void Driver::parse_args(int argc, char* argv[]) {
 			emit_ast = true;
 		} else if (std::regex_match(argv[i], fn)) {
 			input_name = argv[i];
+		} else if (argv[i] == std::string("-help") || argv[i] == std::string("-h")) {
+			std::string help_text = R"(Vex - V compiler
+Usage : vex [options] file
+Options:
+	-O[0-3]			Sets the optimization level, the default is -O0 and can be set up to -O3
+	-emit-ir		Emits LLVM-IR code
+	-help			Prints this message and exits
+	-o [filename]		Emits executable with given name
+	-emit-ast		Pretty prints AST
+	-p			Enables debug mode during parsing
+	-s			Enables debug mode during scanning
+	-emit-oc		Emits object code(named either output.o or the argument specified with -o)
+			)";
+			Logger::set_printer_mode();
+			VEX_TRACE("{0}", help_text);
+			exit(0);
 		} else {
 			VEX_ASSERT(input_name != "", "No input files");
 		}

@@ -105,7 +105,9 @@ namespace Vex {
 #if defined(_WIN32) || defined(_WIN64)
 		std::string postfix(".exe");
 #else
-		std::string postfix(".out");
+		std::string postfix = "";
+		if (filename == "a")
+			postfix += ".out";
 #endif
 
 		ss << prefix << " main.cpp output.o -o" << filename << postfix;
