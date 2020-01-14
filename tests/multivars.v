@@ -30,5 +30,6 @@ endfunc
 int func main()
     var var1 : real;
     var1 := 3.14523141;
+    print bar();
     return 6;
 endfunc

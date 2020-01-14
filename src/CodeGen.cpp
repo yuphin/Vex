@@ -1023,9 +1023,9 @@ namespace Vex {
 			return v;
 		} else if (unit_context->invoke_func) {
 			// Passing first class type to a function
-			v = Builder->CreateLoad(get_type(v, true), v);
+			auto loaded = Builder->CreateLoad(get_type(v, true), v);
 			auto casted = cast_according_to_t(
-				unit_context->func_arg_type, v);
+				unit_context->func_arg_type, loaded);
 			Builder->CreateStore(casted, v);
 		}
 		return unit_context->lhs_eval ? v :

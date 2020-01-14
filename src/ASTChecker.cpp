@@ -150,7 +150,7 @@ namespace Vex {
 		if ((ret_expr->ty_info && func_type < ret_expr->ty_info->s_type) ||
 			func_type < ret_expr->s_type) {
 			AST_ERROR("Return type and function type don't match or cannot narrow type : {0}",
-				el.expr->location);
+				ret_expr->loc);
 		}
 		return nullptr;
 	}
@@ -254,12 +254,12 @@ namespace Vex {
 			if (this->func_type == INT) {
 				el.statement_list.emplace_back(
 					std::make_unique<ReturnStatementAST>(
-						std::make_unique<IntNumAST>(1)
+						std::make_unique<IntNumAST>(0)
 						));
 			} else if (this->func_type == REAL) {
 				el.statement_list.emplace_back(
 					std::make_unique<ReturnStatementAST>(
-						std::make_unique<FloatingNumAST>(1.0)
+						std::make_unique<FloatingNumAST>(0.0)
 						));
 			}
 		} else {
@@ -292,14 +292,14 @@ namespace Vex {
 			auto param_val = params_ty->params[idx];
 			AST_ASSERT(param_val->s_type >= var_ty->s_type,
 				"Cannot cast between types in arg {0} for call at {1} : {2}",
-				idx, params_ty->name, params_ty->loc);
+				idx, params_ty->name, arg_ty->loc);
 			AST_ASSERT(!(var_ty->is_array ^ param_val->is_array),
 				"Incompatible types in arg {0} for call at {1} : {2}"
-				, idx, params_ty->name, params_ty->loc);
+				, idx, params_ty->name, arg_ty->loc);
 			if (var_ty->is_array && *param_val->array_size > 0) {
 				AST_ASSERT(*var_ty->array_size == *param_val->array_size,
 					"Incompatible array sizes {0} and {1} for call at {2} : {3}",
-					*var_ty->array_size, *param_val->array_size, params_ty->name, params_ty->loc);
+					*var_ty->array_size, *param_val->array_size, params_ty->name, arg_ty->loc);
 			}
 
 		}

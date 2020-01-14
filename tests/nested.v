@@ -1,6 +1,6 @@
 
 var superduperlongvariablename12asjhdjhasdxakzdghzxgahjzkgxhjasdgjasdgaskjdgsakdjgfajksxvaskjhgsakfdgaskjdhgsakjdvsajhkfvashskasfksafksafgaskdgsak: real, 
-newlinedvariablenametest123test1213241212134u2h1j2fdsasdasd: int, var3: int[], var4: real[];
+newlinedvariablenametest123test1213241212134u2h1j2fdsasdasd: real, var3: int[2], var4: real[2];
 
 
 int func foo(superduperlongvariablename12asjhdjhasdxakzdghzxgahjzkgxhjasdgjasdgaskjdgsakdjgfajksxvaskjhgsakfdgaskjdhgsakjdvsajhkfvashskasfksafksafgaskdgsak: real, newlinedvariablenametest123test1213241212134u2h1j2fdsasdasd:int)
@@ -16,8 +16,8 @@ real func bar()
                     if superduperlongvariablename12asjhdjhasdxakzdghzxgahjzkgxhjasdgjasdgaskjdgsakdjgfajksxvaskjhgsakfdgaskjdhgsakjdvsajhkfvashskasfksafksafgaskdgsak then
                         if superduperlongvariablename12asjhdjhasdxakzdghzxgahjzkgxhjasdgjasdgaskjdgsakdjgfajksxvaskjhgsakfdgaskjdhgsakjdvsajhkfvashskasfksafksafgaskdgsak then
                             if superduperlongvariablename12asjhdjhasdxakzdghzxgahjzkgxhjasdgjasdgaskjdgsakdjgfajksxvaskjhgsakfdgaskjdhgsakjdvsajhkfvashskasfksafksafgaskdgsak then
-                                while not superduperlongvariablename12asjhdjhasdxakzdghzxgahjzkgxhjasdgjasdgaskjdgsakdjgfajksxvaskjhgsakfdgaskjdhgsakjdvsajhkfvashskasfksafksafgaskdgsak do
-                                    for newlinedvariablenametest123test1213241212134u2h1j2fdsasdasd :=  (var3[0] + var4[0]) to 141*newlinedvariablenametest123test1213241212134u2h1j2fdsasdasd
+                                while superduperlongvariablename12asjhdjhasdxakzdghzxgahjzkgxhjasdgjasdgaskjdgsakdjgfajksxvaskjhgsakfdgaskjdhgsakjdvsajhkfvashskasfksafksafgaskdgsak do
+                                    for newlinedvariablenametest123test1213241212134u2h1j2fdsasdasd :=  (var3[1] + var4[1]) to 141*newlinedvariablenametest123test1213241212134u2h1j2fdsasdasd
                                         newlinedvariablenametest123test1213241212134u2h1j2fdsasdasd := newlinedvariablenametest123test1213241212134u2h1j2fdsasdasd+1;
                                     endfor;
                                 endwhile;
@@ -33,6 +33,6 @@ real func bar()
 endfunc
 
 
-int func main()
+real func main()
     return bar();
 endfunc

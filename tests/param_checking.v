@@ -37,5 +37,5 @@ int func main()
     % no problem since we can convert from int[2] to real[2]
     call2 := fn3(arg1);
     % error since we can't convert from real[2] to int[2]
-    call2 := fn3(arg1);
+    call2 := fn2(arg2);
 endfunc

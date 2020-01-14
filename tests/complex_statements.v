@@ -18,6 +18,7 @@ int func foo()
 
     % if statement
 
+    % try inputs: 0 0
     read next_var[1],var3;
     if next_var[1] or bar(next_var) then
         return 2;
