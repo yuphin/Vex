@@ -133,7 +133,9 @@ namespace Vex {
 			ExprAST(location), val(std::move(val)) {
 		}
 		StringLiteralAST(std::string val) : val(std::move(val)) {
+#ifdef DEBUG
 			std::cout << "Str val is: " << this->val << std::endl;
+#endif
 		}
 		GENERATE_ACCEPTORS()
 	};

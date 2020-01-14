@@ -28,7 +28,7 @@ set(SRC_FILES
 set(HDR_FILES
 	    src/Logger.h
         src/Context.h
-        src/Ast.h
+        src/AST.h
         src/Visitor.h
         src/CodeGen.h
         src/ASTPayload.h
