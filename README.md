@@ -11,7 +11,7 @@ is expected to be on-par with popular compilers like clang and gcc.
 ```
 int func fib(n:int)
     if n <= 1 then
-        return 1;
+        return n;
     endif;
     return fib(n-1) + fib(n-2);
 endfunc
@@ -48,7 +48,7 @@ To build Vex, you need the following:
 * `vector` of ints/reals
 
 As indicated in the specs, first class types are passed by value to functions; however vector types are passed by value **when**
-the current scope has a declaration of it. That is, vectors which are function parameters are passed by reference.
+the current scope has a declaration of it. That is, vectors which are function parameters are passed by reference to other functions.
 
 ## Planned features
 * Arrays

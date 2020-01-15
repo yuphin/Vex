@@ -6,10 +6,39 @@ Driver::Driver() : trace_parsing(false), trace_scanning(false) {
 	global_context = std::make_unique<GlobalContext>();
 }
 
+bool Driver::fexists(const char* filename) {
+	std::ifstream ifile(filename);
+	return ifile.good();
+}
+
+void Driver::print_help() {
+
+	std::string help_text = R"(Vex - V compiler
+Usage : vex [options] file
+Options:
+	-O[0-3]			Sets the optimization level, the default is -O0 and can be set up to -O3
+	-emit-ir		Emits LLVM-IR code
+	-help			Prints this message and exits
+	-o [filename]		Emits executable with given name
+	-emit-ast		Pretty prints AST
+	-p			Enables debug mode during parsing
+	-s			Enables debug mode during scanning
+	-emit-oc		Emits object code(named either output.o or the argument specified with -o)
+			)";
+	Logger::set_printer_mode();
+	VEX_TRACE("{0}", help_text);
+	exit(0);
+
+}
+
 void Driver::parse_args(int argc, char* argv[]) {
 	std::regex opts("-O[0-3]");
 	std::regex fn("(.*).v");
 	std::string input_name = "";
+	if (!argc) {
+		VEX_ERROR("No input files");
+		print_help();
+	}
 	for (int i = 1; i < argc; ++i) {
 		if (argv[i] == std::string("-p")) {
 			trace_parsing = true;
@@ -29,25 +58,11 @@ void Driver::parse_args(int argc, char* argv[]) {
 		} else if (std::regex_match(argv[i], fn)) {
 			input_name = argv[i];
 		} else if (argv[i] == std::string("-help") || argv[i] == std::string("-h")) {
-			std::string help_text = R"(Vex - V compiler
-Usage : vex [options] file
-Options:
-	-O[0-3]			Sets the optimization level, the default is -O0 and can be set up to -O3
-	-emit-ir		Emits LLVM-IR code
-	-help			Prints this message and exits
-	-o [filename]		Emits executable with given name
-	-emit-ast		Pretty prints AST
-	-p			Enables debug mode during parsing
-	-s			Enables debug mode during scanning
-	-emit-oc		Emits object code(named either output.o or the argument specified with -o)
-			)";
-			Logger::set_printer_mode();
-			VEX_TRACE("{0}", help_text);
-			exit(0);
-		} else {
-			VEX_ASSERT(input_name != "", "No input files");
+			print_help();
 		}
 	}
+	VEX_ASSERT(fexists(input_name.c_str()), "File doesn't exist!");
+
 	VEX_ASSERT(!parse(input_name), "Parsing failed");
 }
 

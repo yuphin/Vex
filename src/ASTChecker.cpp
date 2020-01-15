@@ -33,9 +33,32 @@ namespace Vex {
 
 	std::unique_ptr<ASTPayload> ASTChecker::visit(FunctionAST& el) {
 		in_func = true;
+		std::unique_ptr<ASTPayload> blk_res = nullptr;
 		el.prototype->accept(*this);
 		if (!err) {
-			el.body->accept(*this);
+			blk_res = el.body->accept(*this);
+		}
+		auto has_ret = false;
+		for (const auto& stmt : el.body->statement_block->statement_list) {
+			if (dynamic_cast<ReturnStatementAST*>(stmt.get())) {
+				has_ret = true;
+				break;
+			}
+		}
+		if (!has_ret && !blk_res->has_ret) {
+			// Statement block has no return statement, we add it instead
+			VEX_INFO("'return' not found, placing 0 at the end of func {0}", this->func_name);
+			if (this->func_type == INT) {
+				el.body->statement_block->statement_list.emplace_back(
+					std::make_unique<ReturnStatementAST>(
+						std::make_unique<IntNumAST>(0)
+						));
+			} else if (this->func_type == REAL) {
+				el.body->statement_block->statement_list.emplace_back(
+					std::make_unique<ReturnStatementAST>(
+						std::make_unique<FloatingNumAST>(0.0)
+						));
+			}
 		}
 		in_func = false;
 		sym_tab.clear();
@@ -68,8 +91,7 @@ namespace Vex {
 			dl->accept(*this);
 		}
 
-		el.statement_block->accept(*this);
-		return nullptr;
+		return el.statement_block->accept(*this);
 	}
 
 	std::unique_ptr<ASTPayload> ASTChecker::visit(ExprAST& el) {
@@ -183,7 +205,7 @@ namespace Vex {
 			el.else_blk->accept(*this);
 			for (auto& expr : el.else_blk->statement_list) {
 				if (then_has_return && dynamic_cast<ReturnStatementAST*>(expr.get())) {
-					this->ret_in_statement = true;
+					return std::make_unique<ASTPayload>(true);
 				}
 			}
 		}
@@ -191,23 +213,17 @@ namespace Vex {
 	}
 
 	std::unique_ptr<ASTPayload> ASTChecker::visit(ForStatementAST& el) {
-		bool has_outer_block = this->is_inner_stmt_block ? true : false;
-		this->is_inner_stmt_block = !has_outer_block;
 		el.assign_statement->accept(*this);
 		el.to_expr->accept(*this);
 		if (el.by_expr)
 			el.by_expr->accept(*this);
 		el.statement_block->accept(*this);
-		this->is_inner_stmt_block = has_outer_block;
 		return nullptr;
 	}
 
 	std::unique_ptr<ASTPayload> ASTChecker::visit(WhileStatementAST& el) {
-		bool has_outer_block = this->is_inner_stmt_block ? true : false;
-		this->is_inner_stmt_block = !has_outer_block;
 		el.while_expr->accept(*this);
 		el.statement_block->accept(*this);
-		this->is_inner_stmt_block = has_outer_block;
 		return nullptr;
 	}
 
@@ -232,41 +248,25 @@ namespace Vex {
 	}
 
 	std::unique_ptr<ASTPayload> ASTChecker::visit(StatementBlockAST& el) {
-		auto has_ret = false;
 		auto it = el.statement_list.begin();
+		auto has_ret = false;
+		std::unique_ptr<ASTPayload> stmt_res;
 		while (it != el.statement_list.end()) {
-			if (has_ret || ret_in_statement) {
+			if (has_ret) {
 				VEX_INFO("Removing rest of the statements in {0}", this->func_name);
 				it = el.statement_list.erase(it);
 				continue;
 			} else {
-				it->get()->accept(*this);
+				stmt_res = it->get()->accept(*this);
 			}
-			if (!has_ret && dynamic_cast<ReturnStatementAST*>(it->get())) {
+			if ((!has_ret && dynamic_cast<ReturnStatementAST*>(it->get())) 
+				|| (stmt_res && stmt_res->has_ret)) {
 				has_ret = true;
 			}
 			it++;
 
 		}
-		if (!has_ret && !ret_in_statement && !is_inner_stmt_block) {
-			// Statement block has no return statement, we add it instead
-			VEX_INFO("'return' not found, placing 1 at the end of func {0}", this->func_name);
-			if (this->func_type == INT) {
-				el.statement_list.emplace_back(
-					std::make_unique<ReturnStatementAST>(
-						std::make_unique<IntNumAST>(0)
-						));
-			} else if (this->func_type == REAL) {
-				el.statement_list.emplace_back(
-					std::make_unique<ReturnStatementAST>(
-						std::make_unique<FloatingNumAST>(0.0)
-						));
-			}
-		} else {
-			this->ret_in_statement = false;
-
-		}
-		return nullptr;
+		return std::make_unique<ASTPayload>(stmt_res && stmt_res->has_ret==true ? true : false);
 	}
 
 	std::unique_ptr<ASTPayload> ASTChecker::visit(StringLiteralAST& el) {

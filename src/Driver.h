@@ -2,6 +2,7 @@
 #include <string>
 #include <regex>
 #include "Parser.h"
+#include <fstream> 
 #include "Context.h"
 
 // Give Flex the prototype of yylex we want ...
@@ -36,6 +37,8 @@ class Driver {
 	yy::location location;
 
 	private:
+	void print_help();
+	bool fexists(const char*);
 	int opt_level = 0;
 	bool emit_ir = false;
 	bool emit_oc = false;

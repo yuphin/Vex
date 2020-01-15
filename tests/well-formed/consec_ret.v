@@ -29,7 +29,9 @@ int func main(main_arg:real)
          v3 := -v1-v2;
     endif; 
 
-
+    %This gets removed since we
+    %are guaranteed to return 1 or 5 before this point
+    % see -emit-ast for details
     return 1;
 
 endfunc

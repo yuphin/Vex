@@ -29,12 +29,13 @@ int func foo()
         endif;
         return 0;
     endif;
-
+    % this should be eliminated by ASTChecker
     % for statement
     for var3 := 1 to 1000 by 1
         var3 := var3*3 + 4;
         print var3;
     endfor;
+    
     
 endfunc
 

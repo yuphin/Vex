@@ -6,4 +6,5 @@ endfunc
 void func main(main_arg:real)
     var var1: int;
     bar();
+    print "I called bar() and will return void";
 endfunc

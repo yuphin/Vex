@@ -7,7 +7,7 @@ real func foo()
 
     var2 := 10000;
     var1 := 1;
-
+    % you need to input 1 to terminate
     while var1 < var2 do
         print var1 + var2;
         read var2;

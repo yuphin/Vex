@@ -448,6 +448,7 @@ namespace Vex {
 		return nullptr;
 	}
 
+
 	llvm::Value* CodeGen::visit(IntNumAST& el) {
 		return create_int(el.val);
 	}
@@ -588,12 +589,12 @@ namespace Vex {
 		if (!return_label || !llvm::dyn_cast<llvm::BasicBlock>(return_label)) {
 			Builder->CreateBr(if_cont);
 		}
-
+		llvm::Value* else_return_label = nullptr;
 		if (has_else) {
 			enclosing_func->getBasicBlockList().push_back(else_b);
 			Builder->SetInsertPoint(else_b);
-			return_label = el.else_blk->accept(*this);
-			if (!return_label || !llvm::dyn_cast<llvm::BasicBlock>(return_label)) {
+			else_return_label = el.else_blk->accept(*this);
+			if (!else_return_label || !llvm::dyn_cast<llvm::BasicBlock>(else_return_label)) {
 				Builder->CreateBr(if_cont);
 			}
 		}
@@ -607,9 +608,21 @@ namespace Vex {
 			unit_context->in_statement = false;
 
 		}
-		if (return_label && llvm::dyn_cast<llvm::BasicBlock>(return_label)) {
+	
+		// If both if and else has return labels
+		// Then we 'propogate' that label up to the chain
+		// So that potentially outer if statements know not to create an extra branch
+		// Basically we are avoiding this:
+		// br %return_label
+		// br if_cont
+		if (has_else 
+			&& return_label 
+			&& llvm::dyn_cast<llvm::BasicBlock>(return_label) 
+			&& else_return_label 
+			&& llvm::dyn_cast<llvm::BasicBlock>(else_return_label)) {
 			return return_label;
 		}
+		
 		return nullptr;
 
 	}
@@ -960,17 +973,32 @@ namespace Vex {
 	}
 
 	llvm::Value* CodeGen::visit(UnaryExprAST& el) {
-		llvm::Value* V = el.LHS->accept(*this);
-		auto V_type = get_type(V);
+		llvm::Value* v = el.LHS->accept(*this);
+		auto v_type = get_type(v);
 		switch (el.unop) {
 		case UNOT: {
-			return Builder->CreateNot(V, "tmpnot");
+			llvm::Value* result;
+			llvm::Value* zero_val;
+			// Note: Here we sign extend in case we use unary not as an expression in the future.
+			// Currently, unary NOT is only used as a logical expression so this operation is useless
+			// for now.
+			if (v_type->isIntegerTy()) {
+				zero_val = llvm::ConstantInt::get(context,
+					llvm::APInt(v_type->getIntegerBitWidth(), 0, true));
+				result = create_binary(v, zero_val, EQ);
+				return Builder->CreateSExt(result, llvm::IntegerType::get(context, 32));
+			} else {
+				zero_val = llvm::ConstantFP::get(context, llvm::APFloat(0.0));
+				result = create_binary(v, zero_val, EQ);
+				return Builder->CreateSIToFP(result, llvm::Type::getDoubleTy(context));
+			}
+			
 		}
 		case MINUS: {
-			if (V_type->isIntegerTy()) {
-				return Builder->CreateNeg(V, "tmpneg");
-			} else if (V_type->isDoubleTy()) {
-				return Builder->CreateFNeg(V, "tmpneg");
+			if (v_type->isIntegerTy()) {
+				return Builder->CreateNeg(v, "tmpneg");
+			} else if (v_type->isDoubleTy()) {
+				return Builder->CreateFNeg(v, "tmpneg");
 			}
 		}
 		default: {

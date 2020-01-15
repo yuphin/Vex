@@ -4,4 +4,5 @@ int func main(main_arg:real)
     var1 := 3.14;
     var2 := var1;
     print var1,var2;
+    return 15.0;
 endfunc

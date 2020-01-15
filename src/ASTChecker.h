@@ -52,8 +52,6 @@ namespace Vex {
 				params(std::move(params)), name(name), loc(loc), func_type(func_type){}
 		};
 		bool in_func = false;
-		bool ret_in_statement = false;
-		bool is_inner_stmt_block = false;
 		bool err = false;
 		obj_type func_type;
 		std::string func_name;

@@ -8,7 +8,8 @@ int func test()
     var var1 : int;
     var1 := -1;
     if var1 > 0 then
-        return 5;
+        var1 := 6;
+        %return 5;
     else
         return 10;
     endif;
@@ -57,14 +58,15 @@ real func plain_real()
 endfunc
 
 int func main()
+
     var var1 : real;
-    % should read val then print 1.0
+    % should read val then print 0.0
     print plain_real();
     % should print 7
     print while_loop();
     % should print 1
     print loops();
-    % should print 1
+    % should print 0
     print if_only();
     % should print 10
     print test();

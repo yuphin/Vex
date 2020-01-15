@@ -33,6 +33,8 @@ real func main(main_arg:real)
         print "Var1",var1;
         return var1;
     endif;
+    % will never reach this point
+    % remove the two statements 
     print 1;
     return 1;
 endfunc
