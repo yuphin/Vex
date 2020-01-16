@@ -33,6 +33,11 @@ To build Vex, you need the following:
 * LLVM >= 9
 * C++14
 
+## Building
+Provided you have the above dependencies and CMake, you can clone this repo and run 'cmake . && make' to build Vex on Linux. Linux version is
+tested with gcc 7.4 and clang 9. In Windows you can build the project with CMake, assuming you have clang on Windows. (Not tested with MSVC or MinGW) Windows version is tested with Visual Studio using clang-cl compiler.
+After building, you can run ./vex -h to see help menu.
+
 ## Currently supported features
 * A simple type system with an error reporting system
 * Vector operations
